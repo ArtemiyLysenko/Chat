@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat | Sessions</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script type="module" src="/js/sessions-page.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="shell">
+        <header class="shell-header">
+          <div class="shell-brand">
+            <strong>Session control</strong>
+            <span class="subtle">Review current browser persistence and revoke sessions selectively.</span>
+          </div>
+          <nav class="nav-links">
+            <a href="/app">Shell</a>
+            <a href="/app/sessions">Sessions</a>
+            <button class="secondary" type="button" data-logout-button>Sign out</button>
+          </nav>
+        </header>
+        <div class="shell-body">
+          <section class="two-col">
+            <aside class="panel">
+              <h3>Session semantics</h3>
+              <ul class="notes">
+                <li>Logout revokes only the current session.</li>
+                <li>Password change keeps this session active and revokes the rest.</li>
+                <li>Password reset success revokes every session tied to the account.</li>
+              </ul>
+            </aside>
+            <section class="panel">
+              <h3>Active sessions</h3>
+              <p>Each session is backed by the PostgreSQL <code>user_sessions</code> table and the <code>CHAT_SESSION</code> cookie.</p>
+              <div class="message" data-sessions-message></div>
+              <div class="session-list" data-session-list>
+                <div class="muted-block">Loading active sessions...</div>
+              </div>
+            </section>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

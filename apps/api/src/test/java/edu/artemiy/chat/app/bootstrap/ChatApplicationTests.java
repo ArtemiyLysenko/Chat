@@ -2,13 +2,20 @@ package edu.artemiy.chat.app.bootstrap;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
-@SpringBootTest(
-    properties = "spring.autoconfigure.exclude="
-        + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
-        + "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration"
-)
-class ChatApplicationTests {
+import edu.artemiy.chat.testing.PostgresIntegrationSupport;
+
+@SpringBootTest
+@ActiveProfiles("test")
+class ChatApplicationTests extends PostgresIntegrationSupport {
+
+    @DynamicPropertySource
+    static void registerProperties(DynamicPropertyRegistry registry) {
+        registerPostgresProperties(registry);
+    }
 
     @Test
     void contextLoads() {

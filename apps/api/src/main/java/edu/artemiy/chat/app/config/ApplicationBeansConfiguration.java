@@ -10,6 +10,7 @@ import edu.artemiy.chat.attachments.spi.AttachmentStoragePort;
 import edu.artemiy.chat.core.kernel.ClockPort;
 import edu.artemiy.chat.federation.api.FederationAdminQuery;
 import edu.artemiy.chat.federation.api.FederationFeatureFactory;
+import edu.artemiy.chat.identity.api.IdentitySettings;
 
 @Configuration
 class ApplicationBeansConfiguration {
@@ -17,6 +18,14 @@ class ApplicationBeansConfiguration {
     @Bean
     ClockPort clockPort() {
         return ClockPort.systemUtc();
+    }
+
+    @Bean
+    IdentitySettings identitySettings(ChatProperties chatProperties) {
+        return new IdentitySettings(
+            chatProperties.getAuth().getSessionTtl(),
+            chatProperties.getAuth().getPasswordResetTtl()
+        );
     }
 
     @Bean

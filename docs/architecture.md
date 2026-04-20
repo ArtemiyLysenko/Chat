@@ -48,6 +48,7 @@ It builds on ADR 0001 and should be read together with:
 
 ## State Ownership
 - PostgreSQL owns durable state and every permission decision that must survive reconnects or restarts.
+- PostgreSQL `user_sessions` rows are the source of truth for browser authentication. The session cookie is only an opaque session id handle.
 - The Spring Boot process owns ephemeral connection state: active WebSocket sessions, per-user live subscriptions, and a short-lived cache of recent tab activity.
 - Presence is derived state, not its own durable business object. It is computed from authenticated session tabs plus recent activity timestamps.
 - The filesystem owns file bytes, but never authorization. Every download request must re-check the caller's current rights in PostgreSQL.
@@ -60,12 +61,12 @@ It builds on ADR 0001 and should be read together with:
 - XMPP-connected clients and federated peers must map onto the same authorization and history rules as the web UI.
 - Message history uses cursor pagination from the start. Initial load returns the newest window; older windows are fetched by cursor and rendered chronologically.
 - Room names are globally unique. Owners cannot leave their own room; they must delete it instead.
-- Account deletion must remove credentials and sessions, delete rooms owned by the user, and remove the user from all other memberships. Behavior for historical non-owned messages is tracked as an explicit bet until product governance closes it.
+- Milestone 1 account deletion removes credentials, revokes sessions, tombstones the user row, and invokes `AccountDeletionImpactPort`. Later room and messaging milestones attach owned-room deletion and membership cleanup to that hook to reach the full MVP deletion policy.
 - The web UI must expose Jabber administration screens for current connections and federation traffic statistics.
 
 ## Critical End-To-End Flows
 1. Registration, login, logout, and session revocation
-   The browser uses same-origin HTTP to register or authenticate, receives a persistent session cookie, opens a WebSocket with that cookie, and can later revoke a single session without affecting the others.
+   The browser uses same-origin HTTP to register or authenticate, receives a persistent session cookie backed by `user_sessions`, opens a WebSocket with that cookie, and can later revoke a single session without affecting the others.
 2. Room catalog, membership, and moderation
    Public rooms are discoverable and joinable by authenticated users unless banned. Private rooms require invitation. Role changes, bans, removals, and room deletion must update both database state and live subscriptions.
 3. Friendship to direct-dialog eligibility
@@ -99,4 +100,3 @@ Each slice must leave behind updated docs, fresh validation evidence under `docs
 ## Current Bets
 - B2 tracks whether the MVP can stay on PostgreSQL plus in-process live state without Redis.
 - B3 tracks which Java-compatible XMPP library and federation integration shape are the most pragmatic mandatory path.
-- B4 tracks how account deletion should preserve or transform historical messages outside rooms owned by the deleted user.

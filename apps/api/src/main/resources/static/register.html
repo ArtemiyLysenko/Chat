@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat | Register</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script type="module" src="/js/register-page.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero form-card">
+        <div class="eyebrow">Registration</div>
+        <h2>Create your chat account</h2>
+        <p>Usernames become the stable chat handle for later milestones. Use letters, digits, dots, dashes, or underscores.</p>
+        <form class="form-grid" data-register-form>
+          <label>
+            Email
+            <input type="email" name="email" autocomplete="email" required />
+          </label>
+          <label>
+            Username
+            <input type="text" name="username" autocomplete="username" minlength="3" maxlength="32" required />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required />
+          </label>
+          <div class="actions">
+            <button type="submit">Create account</button>
+            <a class="button secondary" href="/login">Back to sign in</a>
+          </div>
+        </form>
+        <div class="message" data-form-message></div>
+      </section>
+    </main>
+  </body>
+</html>

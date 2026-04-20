@@ -17,8 +17,8 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 
 | Table | Key columns | Purpose |
 | --- | --- | --- |
-| `users` | `id`, `email`, `username`, `password_hash`, `created_at` | Registered user identity with unique email and username |
-| `password_reset_tokens` | `id`, `user_id`, `token_hash`, `expires_at`, `used_at` | One-time password reset flow |
+| `users` | `id`, `email`, `username`, `display_name`, `password_hash`, `deleted_at`, `created_at` | Registered user identity with case-insensitive unique email and username, plus tombstone preservation fields |
+| `password_reset_tokens` | `id`, `user_id`, `token_hash`, `expires_at`, `used_at` | One-time password reset flow with hashed token storage only |
 | `user_sessions` | `id`, `user_id`, `created_at`, `last_seen_at`, `expires_at`, `revoked_at`, `user_agent`, `ip_address` | Persistent browser sessions and selective revocation |
 | `session_tabs` | `id`, `session_id`, `tab_key`, `connected_at`, `last_activity_at`, `last_ping_at`, `closed_at` | Per-tab activity and presence derivation |
 
@@ -71,7 +71,8 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 - Room history and attachment reads must verify active membership and absence from the ban list at read time.
 
 ## Required Indexes
-- `users(email)` unique and `users(username)` unique
+- `lower(users.email)` unique and `lower(users.username)` unique
+- `password_reset_tokens(token_hash)` unique
 - `user_sessions(user_id, revoked_at, expires_at)`
 - `session_tabs(session_id, tab_key)` unique and `session_tabs(last_ping_at)`
 - `rooms(visibility, name)`
@@ -90,7 +91,8 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 
 ## Deletion And Retention Rules
 - Deleting a room hard-deletes the room, its memberships, bans, invites, messages, unread markers, moderation events, attachment metadata, and filesystem blobs.
-- Deleting an account invalidates sessions, removes memberships in other rooms, and deletes rooms owned by that user as required by the brief.
-- The brief does not specify whether messages by a deleted account outside owned rooms must be removed, anonymized, or preserved with a tombstone identity. This remains an explicit product and architecture bet before account deletion is implemented.
+- Milestone 1 account deletion invalidates sessions, clears credentials, replaces email and username with unique tombstone values, and preserves historical non-owned messages through a tombstoned `users` row.
+- Owned-room deletion and removal from other room memberships land later through the `AccountDeletionImpactPort` cleanup hook once those tables exist.
+- Tombstoning clears login ability and personal identifiers while keeping a stable row for later message authorship joins and UI rendering.
 - Friendship removal preserves direct-dialog history but prevents new direct messages until friendship is re-established.
 - User blocks preserve direct-dialog history but deny new direct messages and new contact requests.

@@ -6,6 +6,10 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.websocket)
     implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.database.postgresql)
     implementation(project(":modules:core:kernel"))
     implementation(project(":modules:features:identity"))
     implementation(project(":modules:features:rooms"))
@@ -21,4 +25,6 @@ dependencies {
     runtimeOnly(libs.postgresql)
     testImplementation(project(":modules:core:testing"))
     testImplementation(libs.archunit)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.postgresql)
 }

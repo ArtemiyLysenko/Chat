@@ -12,7 +12,7 @@ Build the solution on:
 
 - Java 25
 - Gradle 9.4.1
-- Spring Boot 4.0.3
+- Spring Boot 4.0.5
 - PostgreSQL for persistence
 - Spring Boot websocket support for realtime chat and presence
 - Local filesystem storage under `storage/`
@@ -22,7 +22,7 @@ The initial bootstrap serves the placeholder web shell from the Spring Boot appl
 
 ## Why
 - The user explicitly selected this stack as the delivery baseline.
-- Spring Boot 4.0.3 official docs state Java 17 or higher is supported, which keeps Java 25 inside the supported range.
+- Spring Boot 4.0.5 official docs state Java 17 or higher is supported, which keeps Java 25 inside the supported range.
 - Current Gradle compatibility docs support running Gradle on Java 25, so the build tool can align with the governed runtime instead of relying on an older daemon JVM.
 - Spring Boot aligns well with the required feature set: HTTP APIs, websocket messaging, persistence, security, and operational endpoints.
 - Local file storage matches the brief directly.

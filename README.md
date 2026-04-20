@@ -16,8 +16,8 @@ The target product is a classic web chat application with:
 - admin screens for Jabber connections and federation traffic
 
 ## Current Status
-This repository now includes an agent-ready planning baseline and a runnable local compose contract.
-The current application service is an intentional Spring Boot placeholder that keeps the root execution path concrete while the real chat workflow is scaffolded.
+Milestone 1 is implemented.
+The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, account deletion entry, and the first authenticated app shell.
 
 ## Repository Layout
 - `apps/api` Spring Boot application and initial web delivery
@@ -26,6 +26,7 @@ The current application service is an intentional Spring Boot placeholder that k
 - `tools/load-tests/federation` operational validation module for federation and multi-client test scaffolding
 - `build-logic` included Gradle build for Kotlin convention plugins
 - `docs/` delivery, architecture, governance, and evidence artifacts
+- `docs/milestones/` decision-complete implementation plans for each delivery milestone
 - `gradle/libs.versions.toml` shared dependency and plugin version catalog
 - `infra/docker` container-related assets
 - `storage/` local file storage for uploads and previews
@@ -41,6 +42,7 @@ See:
 - [API contracts](docs/api-contracts.md)
 - [Persistence model](docs/persistence-model.md)
 - [MVP delivery sequence](docs/mvp-delivery-plan.md)
+- [Milestone plans](docs/milestones/README.md)
 - [Evidence guide](docs/evidence/README.md)
 - [ADR 0001](docs/adrs/0001-initial-stack-direction.md)
 - [ADR 0004](docs/adrs/0004-mandatory-xmpp-federation-scope.md)
@@ -50,13 +52,13 @@ See:
 ## Governed Stack
 - Java 25
 - Gradle 9.4.1
-- Spring Boot 4.0.3
+- Spring Boot 4.0.5
 - PostgreSQL
 
 ## Local Bootstrap
 1. Copy `.env.example` to `.env` if you want to override defaults.
 2. Run `docker compose up --build` from the repository root.
-3. Open `http://localhost:8080` for the placeholder web shell and `http://localhost:8080/actuator/health` for the health endpoint.
+3. Open `http://localhost:8080/` for the unauthenticated entry surface and `http://localhost:8080/actuator/health` for the health endpoint.
 
 ## Immediate Next Step
-Replace the placeholder routes and page with the actual chat domain model, authentication flow, realtime messaging, moderation features, Jabber/XMPP support, federation, and the required admin observability screens from the hackathon brief.
+Implement Milestone 2 room catalog, membership, and moderation on top of the Milestone 1 identity, cookie-auth, Flyway, and static-web foundation.

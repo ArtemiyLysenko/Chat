@@ -1,0 +1,9 @@
+package edu.artemiy.chat.identity.spi;
+
+import java.util.UUID;
+
+public record AuthenticatedUser(
+    UUID userId,
+    UUID sessionId
+) {
+}

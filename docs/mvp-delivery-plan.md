@@ -1,47 +1,37 @@
 # MVP Delivery Plan
 
-This sequence is the architected implementation order for the required chat scope, including the mandatory advanced Jabber/XMPP and federation requirements.
-Each milestone must end with updated docs, fresh evidence under `docs/evidence/`, and an architecture review against `docs/governance/checklist.md`.
+This document is the master sequence for the required chat scope, including the mandatory Jabber/XMPP and federation requirements.
+Decision-complete implementation details live in `docs/milestones/*.md`.
+Each milestone must end with updated docs, fresh evidence under `docs/evidence/`, and a review against `docs/governance/checklist.md`.
 
-## Milestone 1: Identity, Password Lifecycle, And Active Sessions
-- Deliver registration, login, logout, password reset, password change, persistent sessions, and active-session listing and revocation.
-- Finalize session-cookie security configuration, password hashing, session persistence, and account deletion preconditions.
-- Evidence required: automated tests for auth flows, manual proof that revoking one session keeps another active, and an explicit decision update for account deletion behavior outside owned rooms.
+| Milestone | Focus | Detailed plan |
+| --- | --- | --- |
+| 1 | Identity, password lifecycle, and active sessions | [Milestone 1](milestones/01-identity-sessions.md) |
+| 2 | Room catalog, membership, and moderation | [Milestone 2](milestones/02-rooms-moderation.md) |
+| 3 | Friendships, blocks, and direct-dialog eligibility | [Milestone 3](milestones/03-contacts-direct-dialogs.md) |
+| 4 | Realtime messaging, unread markers, and history pagination | [Milestone 4](milestones/04-messaging-history-realtime.md) |
+| 5 | Attachments and access revocation | [Milestone 5](milestones/05-attachments-access-control.md) |
+| 6 | Presence and multi-tab behavior | [Milestone 6](milestones/06-presence-multi-tab.md) |
+| 7 | Jabber/XMPP client support and inter-server federation | [Milestone 7](milestones/07-xmpp-federation.md) |
+| 8 | Jabber admin dashboards and federation load validation | [Milestone 8](milestones/08-admin-dashboards-load-validation.md) |
 
-## Milestone 2: Room Catalog, Membership, And Moderation
-- Deliver room creation, public catalog, private room invites, join and leave rules, ownership, admin management, member removal, bans, unbans, and room deletion.
-- Finalize room authorization boundaries and moderation audit record shape.
-- Evidence required: tests for public and private room flows, owner-only delete behavior, admin removal-as-ban behavior, and manual UI notes or screenshots for moderation actions.
+## Sequence Rules
+- Milestone 1 establishes the security, persistence, and static-web foundation for every later slice.
+- Milestones 2 and 3 must land before Milestone 4 because room membership and direct-dialog eligibility gate messaging.
+- Milestone 5 depends on Milestone 4 because attachments are message-bound chat content.
+- Milestone 6 depends on Milestone 4 because tab activity and presence fan-out use the WebSocket channel.
+- Milestone 7 depends on the B3 XMPP decision note produced during Milestone 1 and on the direct-dialog and messaging rules from Milestones 3 and 4.
+- Milestone 8 depends on Milestone 7 for real XMPP and federation state.
 
-## Milestone 3: Friendships, Blocks, And Direct-Dialog Eligibility
-- Deliver contact list, friend requests, accept and reject actions, friendship removal, user blocks, and direct-dialog creation and lookup.
-- Finalize the rules that connect friendship and block state to direct-message eligibility.
-- Evidence required: tests for request lifecycle, block terminating friendship, block freezing new DMs, and continued visibility of prior dialog history.
-
-## Milestone 4: Realtime Messaging, Unread Markers, And History Pagination
-- Deliver message send, edit, delete, reply, unread markers, initial history load, and older-history pagination.
-- Finalize the WebSocket event envelope, fan-out timing, and cursor-based history semantics.
-- Evidence required: end-to-end tests for send, edit, delete, unread clearing, chronological pagination, and timing notes that show message delivery under the target.
-
-## Milestone 5: Attachments And Access Revocation
-- Deliver attachment upload, metadata display, download, size enforcement, paste or upload entry points, and access revocation tied to room membership or ban changes.
-- Finalize storage path conventions, metadata validation, and delete cascades for owned rooms.
-- Evidence required: tests for file and image size caps, download authorization, loss of access after room removal or ban, and manual evidence of upload and download flows.
-
-## Milestone 6: Presence And Multi-Tab Behavior
-- Deliver per-tab activity tracking, `ONLINE` and `AFK` transitions, `OFFLINE` detection, and presence fan-out to relevant users.
-- Finalize heartbeat timing, tab timeout thresholds, and the proof point for staying off Redis in the first iteration.
-- Evidence required: tests or scripted probes for multi-tab transitions, logs showing presence propagation under two seconds, and a benchmark note covering the no-Redis bet.
-
-## Milestone 7: Jabber/XMPP Client Support And Inter-Server Federation
-- Deliver the chosen Jabber/XMPP interoperability level, mandatory client connectivity, and bidirectional messaging between at least two independently configured servers.
-- Finalize the Java-compatible XMPP library choice, federation topology, and the compose-based two-server validation shape.
-- Evidence required: a documented library decision, successful Jabber/XMPP client connectivity, and federation message exchange between server A and server B.
-
-## Milestone 8: Jabber Admin Dashboards And Federation Load Validation
-- Deliver web UI screens for the admin connection dashboard and federation traffic statistics.
-- Run the strongest required validation target: at least 50 connected clients on server A, at least 50 connected clients on server B, and bidirectional messaging between the servers.
-- Evidence required: dashboard screenshots, traffic statistics artifacts, load-test notes or logs, and a clear statement of any protocol-level limits that remain.
+## Cross-Milestone Defaults
+- Keep one Spring Boot application in `apps/api`; do not add microservices or a separate frontend.
+- Use HTTP for writes and queries, raw JSON WebSocket over `/ws` for push and tab activity, and Flyway plus PostgreSQL for durable state.
+- Add Spring Security, Flyway, Bean Validation, Jackson, and Testcontainers in Milestone 1 and reuse them throughout.
+- Keep authentication same-origin and cookie-based with `CHAT_SESSION` as the default cookie name.
+- Use a JS-readable `XSRF-TOKEN` cookie and `X-CSRF-TOKEN` header for state-changing browser requests.
+- Keep UI assets under `apps/api/src/main/resources/static` with vanilla JavaScript modules and no build tool.
+- Add only forward Flyway migrations; never rewrite committed migrations.
+- End every milestone with a green `./gradlew test`, updated docs, and a dated evidence note.
 
 ## Milestone Review Output
 Every milestone review must capture:

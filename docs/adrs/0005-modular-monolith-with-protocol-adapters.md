@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-The project must deliver a classic web chat application on the governed stack of Java 25, Gradle, Spring Boot 4.0.3, PostgreSQL, WebSocket support, and local filesystem storage.
+The project must deliver a classic web chat application on the governed stack of Java 25, Gradle, Spring Boot 4.0.5, PostgreSQL, WebSocket support, and local filesystem storage.
 The scope now includes mandatory Jabber/XMPP client support, federation between two servers, and Jabber-specific admin observability screens.
 
 This creates a key architecture choice:

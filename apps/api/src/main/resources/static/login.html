@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat | Sign In</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script type="module" src="/js/login-page.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero form-card">
+        <div class="eyebrow">Authentication</div>
+        <h2>Sign in to your chat workspace</h2>
+        <p>Your session stays durable across browser restarts until you revoke it or it expires.</p>
+        <form class="form-grid" data-login-form>
+          <label>
+            Email
+            <input type="email" name="email" autocomplete="email" required />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" autocomplete="current-password" required />
+          </label>
+          <div class="actions">
+            <button type="submit">Sign in</button>
+            <a class="button secondary" href="/password-reset/request">Forgot password</a>
+          </div>
+        </form>
+        <div class="message" data-form-message></div>
+        <p><a href="/register">Need an account?</a></p>
+      </section>
+    </main>
+  </body>
+</html>

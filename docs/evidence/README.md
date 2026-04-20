@@ -20,3 +20,5 @@ Store milestone evidence in this directory as dated Markdown notes, screenshots,
 ## Current Baseline
 - `2026-04-20-architecture-baseline-evidence.md` captures the initial solution-architecture package landed before feature implementation.
 - `2026-04-20-mandatory-jabber-scope-evidence.md` captures the later scope decision that made the advanced Jabber and federation requirements mandatory.
+- `2026-04-20-milestone-1-evidence.md` captures the executable Milestone 1 identity, session, security, and compose verification results.
+- `2026-04-20-b3-xmpp-path-spike.md` narrows the mandatory XMPP implementation bet for Milestone 7.

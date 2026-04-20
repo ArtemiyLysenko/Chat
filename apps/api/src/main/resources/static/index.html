@@ -3,74 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chat Bootstrap</title>
-    <style>
-      :root {
-        color-scheme: light;
-        --bg: #f4efe6;
-        --panel: #fffdf8;
-        --ink: #1f1f1f;
-        --accent: #a34a28;
-        --border: #d6c7b2;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: "Georgia", "Times New Roman", serif;
-        color: var(--ink);
-        background:
-          radial-gradient(circle at top left, rgba(163, 74, 40, 0.18), transparent 30%),
-          linear-gradient(160deg, var(--bg), #efe6d7 60%, #e8dcc8);
-      }
-
-      main {
-        max-width: 760px;
-        margin: 48px auto;
-        padding: 32px;
-      }
-
-      .card {
-        background: rgba(255, 253, 248, 0.92);
-        border: 1px solid var(--border);
-        border-radius: 20px;
-        padding: 28px;
-        box-shadow: 0 20px 60px rgba(85, 53, 32, 0.12);
-      }
-
-      h1 {
-        margin-top: 0;
-        font-size: clamp(2rem, 5vw, 3.4rem);
-      }
-
-      p {
-        line-height: 1.6;
-        font-size: 1.05rem;
-      }
-
-      code {
-        background: #f1e4d0;
-        padding: 0.15rem 0.35rem;
-        border-radius: 6px;
-      }
-
-      a {
-        color: var(--accent);
-      }
-    </style>
+    <title>Chat | Entry</title>
+    <link rel="stylesheet" href="/assets/app.css" />
   </head>
   <body>
-    <main>
-      <section class="card">
-        <h1>Chat bootstrap is live</h1>
-        <p>This placeholder web shell is now served by the Spring Boot app so the repository stays runnable through <code>docker compose up --build</code> while the real chat workflow is implemented.</p>
-        <p>Health endpoint: <a href="/actuator/health">/actuator/health</a></p>
-        <p>Bootstrap endpoint: <a href="/api/bootstrap">/api/bootstrap</a></p>
-        <p>Next step: replace this placeholder with the classic web chat experience from the hackathon brief.</p>
+    <main class="page">
+      <section class="hero hero-grid">
+        <div>
+          <div class="eyebrow">Milestone 1</div>
+          <h1>Classic chat entry, backed by durable browser sessions.</h1>
+          <p>
+            This slice delivers registration, persistent login, password lifecycle flows,
+            active-session control, and the first authenticated shell that later milestones
+            will fill with rooms, contacts, messaging, and Jabber federation tooling.
+          </p>
+          <div class="actions">
+            <a class="button" href="/login">Sign in</a>
+            <a class="button secondary" href="/register">Create account</a>
+            <a class="button secondary" href="/password-reset/request">Reset password</a>
+          </div>
+        </div>
+        <aside class="panel">
+          <h3>What ships in this milestone</h3>
+          <ul class="notes">
+            <li>Registration and cookie-based login with PostgreSQL-backed sessions.</li>
+            <li>Password change, reset request, reset consume, and account deletion entry.</li>
+            <li>Selective session revocation with a dedicated session-management screen.</li>
+            <li>Static browser pages served directly by the Spring Boot app.</li>
+          </ul>
+        </aside>
       </section>
     </main>
   </body>

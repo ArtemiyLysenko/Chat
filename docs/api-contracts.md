@@ -32,15 +32,27 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `POST` | `/api/auth/register` | Register a new user | Unique email and username, password hash stored server-side |
-| `POST` | `/api/auth/login` | Start a persistent browser session | Returns session cookie |
-| `POST` | `/api/auth/logout` | End the current session | Must not affect other sessions |
-| `GET` | `/api/sessions` | List active sessions | Includes current session flag, user agent, and IP |
-| `DELETE` | `/api/sessions/{sessionId}` | Revoke a selected session | Must support revoking non-current sessions |
-| `POST` | `/api/auth/password/change` | Change password for current user | Requires current authenticated session |
-| `POST` | `/api/auth/password/reset-requests` | Request a password reset token | Token handling remains server-managed |
-| `POST` | `/api/auth/password/reset` | Consume password reset token | Invalidates outstanding reset token |
-| `DELETE` | `/api/account` | Delete current account | Must apply owned-room cascade and session invalidation rules |
+| `POST` | `/api/auth/register` | Register a new user | Returns `201` plus a user summary; unique email and username, password hash stored server-side |
+| `POST` | `/api/auth/login` | Start a persistent browser session | Returns `200`, a `CHAT_SESSION` cookie, and a `LoginSession` payload |
+| `POST` | `/api/auth/logout` | End the current session | Returns `204`, clears the current session cookie, and must not affect other sessions |
+| `GET` | `/api/sessions` | List active sessions | Returns `200` with `SessionSummary[]`, including current session flag, user agent, and IP |
+| `DELETE` | `/api/sessions/{sessionId}` | Revoke a selected session | Returns `204`; must support revoking non-current sessions and clear the cookie if the caller revokes the current session |
+| `POST` | `/api/auth/password/change` | Change password for current user | Returns `204`, requires current authenticated session, keeps that session active, and revokes all other sessions |
+| `POST` | `/api/auth/password/reset-requests` | Request a password reset token | Returns `202` even for unknown email; local and test profiles log the raw reset URL once |
+| `POST` | `/api/auth/password/reset` | Consume password reset token | Returns `204`, invalidates outstanding reset tokens, and revokes all sessions after success |
+| `DELETE` | `/api/account` | Delete current account | Returns `204`, clears the current session cookie, tombstones the identity, and invokes the later cleanup hook for room and messaging side effects |
+
+### Browser UI Routes
+
+| Route | Audience | Purpose |
+| --- | --- | --- |
+| `/` | unauthenticated by default | Entry surface for the Milestone 1 auth flows |
+| `/login` | unauthenticated only | Static sign-in page |
+| `/register` | unauthenticated only | Static registration page |
+| `/password-reset/request` | unauthenticated only | Static password reset request page |
+| `/password-reset/consume` | unauthenticated only | Static password reset consume page |
+| `/app` | authenticated only | Static authenticated shell page |
+| `/app/sessions` | authenticated only | Static active-session management page |
 
 ### Rooms And Moderation
 

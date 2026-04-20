@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat | App Shell</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script type="module" src="/js/app-shell-page.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="shell">
+        <header class="shell-header">
+          <div class="shell-brand">
+            <strong>Chat classic shell</strong>
+            <span class="subtle">Rooms, contacts, and messaging land in later milestones.</span>
+          </div>
+          <nav class="nav-links">
+            <a href="/app">Shell</a>
+            <a href="/app/sessions">Sessions</a>
+            <button class="secondary" type="button" data-logout-button>Sign out</button>
+          </nav>
+        </header>
+        <div class="shell-body">
+          <section class="dashboard">
+            <aside class="panel">
+              <h3>Milestone 1 status</h3>
+              <div class="metric-list">
+                <div>
+                  <div class="metric">6</div>
+                  <div class="subtle">identity and password endpoints wired</div>
+                </div>
+                <div>
+                  <div class="metric">2</div>
+                  <div class="subtle">authenticated pages ready for extension</div>
+                </div>
+              </div>
+            </aside>
+            <div class="stack">
+              <section class="panel">
+                <h3>Password change</h3>
+                <p>Changing the password preserves this browser session and revokes every other active session.</p>
+                <form class="form-grid" data-password-change-form>
+                  <label>
+                    Current password
+                    <input type="password" name="currentPassword" autocomplete="current-password" required />
+                  </label>
+                  <label>
+                    New password
+                    <input type="password" name="newPassword" autocomplete="new-password" minlength="8" maxlength="72" required />
+                  </label>
+                  <div class="actions">
+                    <button type="submit">Update password</button>
+                    <a class="button secondary" href="/app/sessions">Review sessions</a>
+                  </div>
+                </form>
+                <div class="message" data-password-change-message></div>
+              </section>
+
+              <section class="panel">
+                <h3>Account deletion</h3>
+                <p>This milestone tombstones the user row, clears credentials, revokes all sessions, and leaves later cross-feature cleanup behind a no-op hook.</p>
+                <form class="form-grid" data-account-delete-form>
+                  <label>
+                    Current password
+                    <input type="password" name="currentPassword" autocomplete="current-password" required />
+                  </label>
+                  <div class="actions">
+                    <button class="danger" type="submit">Delete account</button>
+                  </div>
+                </form>
+                <div class="message" data-account-delete-message></div>
+              </section>
+
+              <section class="panel">
+                <h3>Next milestone hooks</h3>
+                <ul class="notes">
+                  <li>The shell navigation can absorb room and contact panels without changing the auth model.</li>
+                  <li>The session store already provides the cookie contract needed for `/ws` authentication later.</li>
+                  <li>Account deletion already exposes the cleanup hook that later room and messaging milestones will fill.</li>
+                </ul>
+              </section>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

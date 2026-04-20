@@ -31,7 +31,7 @@ Build a classic web chat application for the AI Herders Jam hackathon with AI-fi
 ## Governed Technical Direction
 - Application runtime: Java 25
 - Build system: Gradle 9.4.1
-- Backend framework: Spring Boot 4.0.3
+- Backend framework: Spring Boot 4.0.5
 - Primary persistence: PostgreSQL
 - Initial UI delivery: Spring Boot-served web UI and static assets
 - Realtime delivery: Spring WebSocket support
