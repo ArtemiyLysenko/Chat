@@ -1,0 +1,3 @@
+-- Placeholder migration location for the modular monolith.
+-- Real schema migrations for identity, rooms, messaging, presence, and federation
+-- should live beside the persistence JPA adapter module.

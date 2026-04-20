@@ -1,0 +1,30 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: chat-app
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/chat}
+    username: ${SPRING_DATASOURCE_USERNAME:chat}
+    password: ${SPRING_DATASOURCE_PASSWORD:chat}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  sql:
+    init:
+      mode: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+chat:
+  storage-root: ${CHAT_STORAGE_ROOT:storage}
+  node-id: ${CHAT_NODE_ID:local-node}
+  federation:
+    enabled: ${CHAT_FEDERATION_ENABLED:false}
+    peer-domain: ${CHAT_FEDERATION_PEER_DOMAIN:}

@@ -1,0 +1,24 @@
+plugins {
+    id("chat.spring-boot-application-conventions")
+}
+
+dependencies {
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.websocket)
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(project(":modules:core:kernel"))
+    implementation(project(":modules:features:identity"))
+    implementation(project(":modules:features:rooms"))
+    implementation(project(":modules:features:contacts"))
+    implementation(project(":modules:features:messaging"))
+    implementation(project(":modules:features:attachments"))
+    implementation(project(":modules:features:presence"))
+    implementation(project(":modules:features:federation"))
+    implementation(project(":modules:features:admin"))
+    implementation(project(":modules:adapters:persistence-jpa"))
+    implementation(project(":modules:adapters:storage-filesystem"))
+    implementation(project(":modules:adapters:xmpp"))
+    runtimeOnly(libs.postgresql)
+    testImplementation(project(":modules:core:testing"))
+    testImplementation(libs.archunit)
+}
