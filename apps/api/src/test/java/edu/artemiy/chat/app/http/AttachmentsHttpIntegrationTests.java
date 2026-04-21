@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
@@ -168,6 +169,57 @@ class AttachmentsHttpIntegrationTests extends PostgresIntegrationSupport {
             .isEqualTo(uploaded.path("id").asText());
     }
 
+    @Test
+    void bannedRoomMemberLosesMetadataAndDownloadAccessImmediately() throws Exception {
+        AuthenticatedClient owner = registerAndLogin("ban-owner@example.com", "ban-owner");
+        AuthenticatedClient member = registerAndLogin("ban-member@example.com", "ban-member");
+        UUID roomId = createRoom(owner, "Banned uploads");
+        postWithoutBody("/api/rooms/%s/join".formatted(roomId), member, 204);
+
+        JsonNode uploaded = uploadAttachment(
+            "/api/chats/room/%s/attachments".formatted(roomId),
+            new MockMultipartFile("file", "ban-evidence.txt", "text/plain", "ban evidence".getBytes(StandardCharsets.UTF_8)),
+            null,
+            member,
+            201
+        );
+
+        putWithoutBody("/api/rooms/%s/bans/%s".formatted(roomId, member.userId()), owner, 204);
+
+        getRaw("/api/attachments/%s".formatted(uploaded.path("id").asText()), member, 403);
+        getRaw("/api/attachments/%s/download".formatted(uploaded.path("id").asText()), member, 403);
+        assertThat(getJson("/api/attachments/%s".formatted(uploaded.path("id").asText()), owner, 200).path("id").asText())
+            .isEqualTo(uploaded.path("id").asText());
+    }
+
+    @Test
+    void deletingRoomRemovesAttachmentMetadataAndFilesystemBlob() throws Exception {
+        AuthenticatedClient owner = registerAndLogin("cleanup-owner@example.com", "cleanup-owner");
+        UUID roomId = createRoom(owner, "Cleanup");
+        byte[] content = "cleanup".getBytes(StandardCharsets.UTF_8);
+
+        JsonNode uploaded = uploadAttachment(
+            "/api/chats/room/%s/attachments".formatted(roomId),
+            new MockMultipartFile("file", "cleanup.txt", "text/plain", content),
+            null,
+            owner,
+            201
+        );
+
+        Path blobPath = STORAGE_ROOT.resolve("uploads").resolve(uploaded.path("id").asText());
+        assertThat(Files.exists(blobPath)).isTrue();
+
+        deleteWithoutBody("/api/rooms/%s".formatted(roomId), owner, 204);
+
+        getRaw("/api/attachments/%s".formatted(uploaded.path("id").asText()), owner, 404);
+        assertThat(Files.exists(blobPath)).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from attachments where id = ?::uuid",
+            Integer.class,
+            uploaded.path("id").asText()
+        )).isZero();
+    }
+
     private UUID createRoom(AuthenticatedClient client, String name) throws Exception {
         JsonNode created = postJson(
             "/api/rooms",
@@ -263,6 +315,14 @@ class AttachmentsHttpIntegrationTests extends PostgresIntegrationSupport {
 
     private void deleteWithoutBody(String path, AuthenticatedClient client, int expectedStatus) throws Exception {
         var request = delete(path)
+            .contentType(APPLICATION_JSON)
+            .header("X-CSRF-TOKEN", client.csrfCookie().getValue())
+            .cookie(client.csrfCookie(), client.sessionCookie());
+        mockMvc.perform(request).andExpect(status().is(expectedStatus));
+    }
+
+    private void putWithoutBody(String path, AuthenticatedClient client, int expectedStatus) throws Exception {
+        var request = put(path)
             .contentType(APPLICATION_JSON)
             .header("X-CSRF-TOKEN", client.csrfCookie().getValue())
             .cookie(client.csrfCookie(), client.sessionCookie());

@@ -10,7 +10,11 @@ import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import edu.artemiy.chat.adapters.persistence.jpa.attachments.AttachmentJpaRepository;
+import edu.artemiy.chat.attachments.spi.AttachmentStoragePort;
 import edu.artemiy.chat.rooms.api.MembershipRole;
 import edu.artemiy.chat.rooms.api.RoomVisibility;
 import edu.artemiy.chat.rooms.spi.DuplicateRoomNameException;
@@ -39,6 +43,8 @@ class JpaRoomPersistenceAdapter implements RoomPersistencePort {
     private final RoomBanJpaRepository roomBanJpaRepository;
     private final ModerationAuditEventJpaRepository moderationAuditEventJpaRepository;
     private final RoomUserReadRepository roomUserReadRepository;
+    private final AttachmentJpaRepository attachmentJpaRepository;
+    private final AttachmentStoragePort attachmentStoragePort;
 
     JpaRoomPersistenceAdapter(
         RoomJpaRepository roomJpaRepository,
@@ -46,7 +52,9 @@ class JpaRoomPersistenceAdapter implements RoomPersistencePort {
         RoomInviteJpaRepository roomInviteJpaRepository,
         RoomBanJpaRepository roomBanJpaRepository,
         ModerationAuditEventJpaRepository moderationAuditEventJpaRepository,
-        RoomUserReadRepository roomUserReadRepository
+        RoomUserReadRepository roomUserReadRepository,
+        AttachmentJpaRepository attachmentJpaRepository,
+        AttachmentStoragePort attachmentStoragePort
     ) {
         this.roomJpaRepository = roomJpaRepository;
         this.roomMembershipJpaRepository = roomMembershipJpaRepository;
@@ -54,6 +62,8 @@ class JpaRoomPersistenceAdapter implements RoomPersistencePort {
         this.roomBanJpaRepository = roomBanJpaRepository;
         this.moderationAuditEventJpaRepository = moderationAuditEventJpaRepository;
         this.roomUserReadRepository = roomUserReadRepository;
+        this.attachmentJpaRepository = attachmentJpaRepository;
+        this.attachmentStoragePort = attachmentStoragePort;
     }
 
     @Override
@@ -255,8 +265,27 @@ class JpaRoomPersistenceAdapter implements RoomPersistencePort {
 
     @Override
     public void deleteRoom(UUID roomId) {
+        List<String> storageKeys = attachmentJpaRepository.findStorageKeysByRoomId(roomId);
         roomJpaRepository.deleteById(roomId);
         roomJpaRepository.flush();
+        deleteAttachmentBlobsAfterCommit(storageKeys);
+    }
+
+    private void deleteAttachmentBlobsAfterCommit(List<String> storageKeys) {
+        if (storageKeys.isEmpty()) {
+            return;
+        }
+        List<String> keysToDelete = List.copyOf(storageKeys);
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            keysToDelete.forEach(attachmentStoragePort::delete);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                keysToDelete.forEach(attachmentStoragePort::delete);
+            }
+        });
     }
 
     private static StoredRoom toStoredRoom(RoomEntity entity) {

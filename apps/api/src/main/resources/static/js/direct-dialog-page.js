@@ -56,6 +56,8 @@ const directChatSurface = createChatSurface({
   composerForm: document.querySelector("[data-chat-composer-form]"),
   bodyInput: document.querySelector("[data-chat-body-input]"),
   submitButton: document.querySelector("[data-chat-submit-button]"),
+  attachmentButton: document.querySelector("[data-chat-attachment-button]"),
+  attachmentInput: document.querySelector("[data-chat-file-input]"),
   replyBanner: document.querySelector("[data-chat-reply-target]"),
   editBanner: document.querySelector("[data-chat-edit-target]"),
   cancelReplyButton: document.querySelector("[data-chat-cancel-reply-button]"),
@@ -63,6 +65,9 @@ const directChatSurface = createChatSurface({
   formatDate,
   onConversationChanged: async () => {
     await refreshContacts();
+  },
+  onAccessChanged: async () => {
+    await loadPage();
   },
 });
 

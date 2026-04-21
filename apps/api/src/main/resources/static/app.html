@@ -118,7 +118,7 @@
                     <div class="chat-panel-header">
                       <div>
                         <h3>Room timeline</h3>
-                        <p>History, replies, edits, deletes, and unread clearing run over HTTP in this slice. Uploads stay disabled until Milestone 5.</p>
+                        <p>History, replies, edits, deletes, unread clearing, and attachment uploads run over HTTP in this slice while `/ws` keeps open timelines fresh.</p>
                       </div>
                       <button class="secondary" type="button" data-room-refresh-chat-button>Refresh chat</button>
                     </div>
@@ -142,8 +142,12 @@
                         <textarea name="bodyText" rows="4" maxlength="3072" placeholder="Write a room message" data-chat-body-input required></textarea>
                       </label>
                       <div class="chat-composer-footer">
-                        <div class="subtle">Uploads and attachments stay deferred to Milestone 5.</div>
-                        <button type="submit" data-chat-submit-button>Send message</button>
+                        <div class="subtle">Use Attach file or paste an image. Composer text becomes the optional attachment comment.</div>
+                        <div class="actions">
+                          <input type="file" data-chat-file-input hidden />
+                          <button class="secondary" type="button" data-chat-attachment-button>Attach file</button>
+                          <button type="submit" data-chat-submit-button>Send message</button>
+                        </div>
                       </div>
                     </form>
                   </section>
@@ -194,6 +198,7 @@
                   <li>Joining uses one path for both public rooms and accepted private invites.</li>
                   <li>Regular-member removal does not ban. Admin removal through member removal does.</li>
                   <li>Room unread badges and open room timelines now update live over the authenticated `/ws` channel while HTTP remains the mutation path.</li>
+                  <li>Attachment uploads create message-bound timeline items and downloads are re-authorized on every request.</li>
                 </ul>
               </section>
             </aside>

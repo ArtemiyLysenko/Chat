@@ -517,6 +517,32 @@ ul.notes {
   margin-bottom: 12px;
 }
 
+.message-attachments {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.message-attachment {
+  border: 1px solid rgba(127, 55, 32, 0.16);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(127, 55, 32, 0.04);
+}
+
+.message-attachment-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.message-attachment-comment {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
 .chat-composer {
   display: grid;
   gap: 14px;
@@ -544,7 +570,8 @@ ul.notes {
   .chat-panel-header,
   .timeline-message-header,
   .chat-composer-footer,
-  .chat-target-banner {
+  .chat-target-banner,
+  .message-attachment-header {
     flex-direction: column;
     align-items: start;
   }

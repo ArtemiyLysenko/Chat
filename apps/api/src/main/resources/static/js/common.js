@@ -80,9 +80,62 @@ export const jsonRequest = async (url, { method = "GET", body } = {}) => {
   const contentType = response.headers.get("content-type") ?? "";
   const payload = contentType.includes("application/json") ? await response.json() : null;
   if (!response.ok) {
-    throw new Error(payload?.message ?? `Request failed with status ${response.status}.`);
+    const error = new Error(payload?.message ?? `Request failed with status ${response.status}.`);
+    error.status = response.status;
+    error.code = payload?.code ?? null;
+    throw error;
   }
   return payload;
+};
+
+export const multipartRequest = async (url, { method = "POST", formData } = {}) => {
+  const headers = {};
+  const options = {
+    method,
+    headers,
+    credentials: "same-origin",
+    body: formData,
+  };
+
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers["X-CSRF-TOKEN"] = csrfToken();
+  }
+
+  const response = await fetch(url, options);
+  if (redirectIfUnauthorized(response)) {
+    throw new Error("Unauthorized");
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json") ? await response.json() : null;
+  if (!response.ok) {
+    const error = new Error(payload?.message ?? `Request failed with status ${response.status}.`);
+    error.status = response.status;
+    error.code = payload?.code ?? null;
+    throw error;
+  }
+  return payload;
+};
+
+export const binaryRequest = async (url) => {
+  const response = await fetch(url, { credentials: "same-origin" });
+  if (redirectIfUnauthorized(response)) {
+    throw new Error("Unauthorized");
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!response.ok) {
+    const payload = contentType.includes("application/json") ? await response.json() : null;
+    const error = new Error(payload?.message ?? `Request failed with status ${response.status}.`);
+    error.status = response.status;
+    error.code = payload?.code ?? null;
+    throw error;
+  }
+
+  return {
+    blob: await response.blob(),
+    headers: response.headers,
+  };
 };
 
 export const bindAsyncForm = (form, messageElement, handler) => {

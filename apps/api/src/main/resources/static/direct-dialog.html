@@ -13,7 +13,7 @@
         <header class="shell-header">
           <div class="shell-brand">
             <strong>Direct dialog workspace</strong>
-            <span class="subtle">Stable dialog identity from Milestone 3 now drives a real HTTP timeline, reply flow, edit or delete controls, and unread badge clearing.</span>
+            <span class="subtle">Stable dialog identity from Milestone 3 now drives a real HTTP timeline, reply flow, edit or delete controls, unread badge clearing, and attachment sharing.</span>
           </div>
           <nav class="nav-links">
             <a href="/app">Rooms</a>
@@ -37,10 +37,10 @@
               </section>
 
               <section class="panel">
-                <h3>Milestone 4 notes</h3>
+                <h3>Milestone 5 notes</h3>
                 <ul class="notes">
                   <li>Replies, edits, deletes, and read-marker writes still stay on HTTP.</li>
-                  <li>Uploads remain disabled until Milestone 5.</li>
+                  <li>Attachment uploads now create message-bound direct-dialog timeline items.</li>
                   <li>Direct unread badges, reconnect refresh, and open-dialog timeline updates now consume the authenticated `/ws` channel.</li>
                 </ul>
               </section>
@@ -78,8 +78,12 @@
                     <textarea name="bodyText" rows="4" maxlength="3072" placeholder="Write a direct message" data-chat-body-input required></textarea>
                   </label>
                   <div class="chat-composer-footer">
-                    <div class="subtle">Uploads and attachments stay deferred to Milestone 5.</div>
-                    <button type="submit" data-chat-submit-button>Send message</button>
+                    <div class="subtle">Use Attach file or paste an image. Composer text becomes the optional attachment comment.</div>
+                    <div class="actions">
+                      <input type="file" data-chat-file-input hidden />
+                      <button class="secondary" type="button" data-chat-attachment-button>Attach file</button>
+                      <button type="submit" data-chat-submit-button>Send message</button>
+                    </div>
                   </div>
                 </form>
               </section>

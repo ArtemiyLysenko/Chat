@@ -1,4 +1,4 @@
-import { clearMessage, jsonRequest, writeMessage } from "./common.js";
+import { binaryRequest, clearMessage, jsonRequest, multipartRequest, writeMessage } from "./common.js";
 
 const excerpt = (text, maxLength = 120) => {
   if (!text) {
@@ -16,6 +16,20 @@ const compareMessages = (left, right) => {
 };
 
 const authorLabel = (author) => (author.deleted ? author.displayName : `${author.displayName} (@${author.username})`);
+
+const formatBytes = (sizeBytes) => {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+  const units = ["KB", "MB", "GB"];
+  let value = sizeBytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
 
 const messagePreviewText = (message) => {
   if (!message) {
@@ -43,12 +57,15 @@ export const createChatSurface = ({
   composerForm,
   bodyInput,
   submitButton,
+  attachmentButton,
+  attachmentInput,
   replyBanner,
   editBanner,
   cancelReplyButton,
   cancelEditButton,
   formatDate,
   onConversationChanged = async () => {},
+  onAccessChanged = async () => {},
 }) => {
   const replyBannerCopy = replyBanner.querySelector(".chat-target-banner-copy");
   const editBannerCopy = editBanner.querySelector(".chat-target-banner-copy");
@@ -67,6 +84,32 @@ export const createChatSurface = ({
     state.context == null
       ? ""
       : `/api/chats/${state.context.chatType.toLowerCase()}/${encodeURIComponent(state.context.chatId)}`;
+
+  const maybeRefreshForAccessChange = async (error) => {
+    if (error?.status === 403 || error?.status === 404) {
+      try {
+        await onAccessChanged({ error, context: state.context });
+      } catch {
+      }
+    }
+  };
+
+  const resetAttachmentInput = () => {
+    if (attachmentInput) {
+      attachmentInput.value = "";
+    }
+  };
+
+  const triggerBrowserDownload = (blob, filename) => {
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+  };
 
   const canEdit = (message) =>
     state.context != null
@@ -87,6 +130,7 @@ export const createChatSurface = ({
     if (resetInput) {
       composerForm.reset();
     }
+    resetAttachmentInput();
     replyBanner.hidden = true;
     editBanner.hidden = true;
     submitButton.textContent = "Send message";
@@ -177,10 +221,70 @@ export const createChatSurface = ({
         article.append(replyPreview);
       }
 
-      const body = document.createElement("div");
-      body.className = "timeline-message-body";
-      body.textContent = message.state === "DELETED" ? "Message deleted." : message.bodyText;
-      article.append(body);
+      if (message.state === "DELETED") {
+        const body = document.createElement("div");
+        body.className = "timeline-message-body";
+        body.textContent = "Message deleted.";
+        article.append(body);
+      } else if ((message.attachments?.length ?? 0) === 0) {
+        const body = document.createElement("div");
+        body.className = "timeline-message-body";
+        body.textContent = message.bodyText;
+        article.append(body);
+      }
+
+      if (message.state !== "DELETED" && (message.attachments?.length ?? 0) > 0) {
+        const attachmentsWrap = document.createElement("div");
+        attachmentsWrap.className = "message-attachments";
+
+        for (const attachment of message.attachments) {
+          const attachmentCard = document.createElement("div");
+          attachmentCard.className = "message-attachment";
+
+          const attachmentHeader = document.createElement("div");
+          attachmentHeader.className = "message-attachment-header";
+
+          const attachmentInfo = document.createElement("div");
+          const attachmentName = document.createElement("strong");
+          attachmentName.textContent = attachment.originalName;
+          const attachmentMeta = document.createElement("div");
+          attachmentMeta.className = "subtle";
+          attachmentMeta.textContent = `${formatBytes(attachment.sizeBytes)} · ${attachment.mediaType}`;
+          attachmentInfo.append(attachmentName, attachmentMeta);
+
+          const attachmentActions = document.createElement("div");
+          attachmentActions.className = "actions";
+          const downloadButton = actionButton("Download", "secondary");
+          downloadButton.addEventListener("click", async () => {
+            downloadButton.disabled = true;
+            try {
+              const { blob } = await binaryRequest(`/api/attachments/${encodeURIComponent(attachment.attachmentId)}/download`);
+              triggerBrowserDownload(blob, attachment.originalName);
+              writeMessage(statusElement, "success", `Downloaded ${attachment.originalName}.`);
+            } catch (error) {
+              await maybeRefreshForAccessChange(error);
+              writeMessage(statusElement, "error", error.message);
+            } finally {
+              downloadButton.disabled = false;
+            }
+          });
+          attachmentActions.append(downloadButton);
+
+          attachmentHeader.append(attachmentInfo, attachmentActions);
+          attachmentCard.append(attachmentHeader);
+
+          if (attachment.commentText) {
+            const attachmentComment = document.createElement("div");
+            attachmentComment.className = "message-attachment-comment";
+            attachmentComment.textContent = attachment.commentText;
+            attachmentCard.append(attachmentComment);
+          }
+
+          attachmentsWrap.append(attachmentCard);
+        }
+
+        article.append(attachmentsWrap);
+      }
 
       const actions = document.createElement("div");
       actions.className = "actions";
@@ -228,6 +332,7 @@ export const createChatSurface = ({
             await onConversationChanged({ reason: "delete", chatId: state.context?.chatId });
             writeMessage(statusElement, "success", "Message deleted.");
           } catch (error) {
+            await maybeRefreshForAccessChange(error);
             writeMessage(statusElement, "error", error.message);
           }
         });
@@ -267,6 +372,7 @@ export const createChatSurface = ({
       state.nextBeforeMessageId = page.nextBeforeMessageId;
       renderTimeline();
     } catch (error) {
+      await maybeRefreshForAccessChange(error);
       writeMessage(statusElement, "error", error.message);
     } finally {
       loadOlderButton.disabled = false;
@@ -333,14 +439,88 @@ export const createChatSurface = ({
         writeMessage(statusElement, "success", "Message sent.");
       }
     } catch (error) {
+      await maybeRefreshForAccessChange(error);
       writeMessage(statusElement, "error", error.message);
     } finally {
       submitButton.disabled = false;
     }
   };
 
+  const uploadAttachment = async (file, { source = "upload" } = {}) => {
+    if (state.context == null || !file) {
+      return;
+    }
+    if (state.replyTarget || state.editTarget) {
+      writeMessage(statusElement, "error", "Finish or cancel reply or edit mode before uploading an attachment.");
+      resetAttachmentInput();
+      return;
+    }
+
+    const commentText = bodyInput.value.trim();
+    submitButton.disabled = true;
+    if (attachmentButton) {
+      attachmentButton.disabled = true;
+    }
+    clearMessage(statusElement);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name || "attachment");
+      if (commentText) {
+        formData.append("commentText", commentText);
+      }
+      const descriptor = await multipartRequest(`${chatPath()}/attachments`, {
+        method: "POST",
+        formData,
+      });
+      clearComposerState();
+      renderBanners();
+      await loadLatest();
+      await onConversationChanged({ reason: "attachment", chatId: state.context.chatId });
+      writeMessage(
+        statusElement,
+        "success",
+        source === "paste"
+          ? `Pasted image uploaded as ${descriptor.originalName}.`
+          : `Uploaded ${descriptor.originalName}.`
+      );
+    } catch (error) {
+      await maybeRefreshForAccessChange(error);
+      writeMessage(statusElement, "error", error.message);
+    } finally {
+      submitButton.disabled = false;
+      if (attachmentButton) {
+        attachmentButton.disabled = false;
+      }
+      resetAttachmentInput();
+    }
+  };
+
   loadOlderButton.addEventListener("click", loadOlder);
   composerForm.addEventListener("submit", submitMessage);
+  attachmentButton?.addEventListener("click", () => {
+    if (state.context == null) {
+      writeMessage(statusElement, "error", "Open a conversation before uploading attachments.");
+      return;
+    }
+    attachmentInput?.click();
+  });
+  attachmentInput?.addEventListener("change", async () => {
+    const file = attachmentInput.files?.[0];
+    await uploadAttachment(file);
+  });
+  bodyInput.addEventListener("paste", async (event) => {
+    const imageItem = [...(event.clipboardData?.items ?? [])].find((item) => item.kind === "file" && item.type.startsWith("image/"));
+    if (!imageItem) {
+      return;
+    }
+    const file = imageItem.getAsFile();
+    if (!file) {
+      return;
+    }
+    event.preventDefault();
+    await uploadAttachment(file, { source: "paste" });
+  });
   cancelReplyButton.addEventListener("click", () => {
     state.replyTarget = null;
     renderBanners();
@@ -357,6 +537,9 @@ export const createChatSurface = ({
       state.nextBeforeMessageId = null;
       state.lastMarkedMessageId = null;
       bodyInput.setAttribute("placeholder", context.placeholder ?? defaultPlaceholder);
+      if (attachmentButton) {
+        attachmentButton.disabled = false;
+      }
       clearComposerState();
       renderBanners();
       renderTimeline();
@@ -372,6 +555,9 @@ export const createChatSurface = ({
       renderTimeline();
       clearMessage(statusElement);
       bodyInput.setAttribute("placeholder", defaultPlaceholder);
+      if (attachmentButton) {
+        attachmentButton.disabled = true;
+      }
     },
     async refresh() {
       await loadLatest();

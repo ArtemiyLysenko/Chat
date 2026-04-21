@@ -55,6 +55,8 @@ const roomChatSurface = createChatSurface({
   composerForm: roomMessagePanel.querySelector("[data-chat-composer-form]"),
   bodyInput: roomMessagePanel.querySelector("[data-chat-body-input]"),
   submitButton: roomMessagePanel.querySelector("[data-chat-submit-button]"),
+  attachmentButton: roomMessagePanel.querySelector("[data-chat-attachment-button]"),
+  attachmentInput: roomMessagePanel.querySelector("[data-chat-file-input]"),
   replyBanner: roomMessagePanel.querySelector("[data-chat-reply-target]"),
   editBanner: roomMessagePanel.querySelector("[data-chat-edit-target]"),
   cancelReplyButton: roomMessagePanel.querySelector("[data-chat-cancel-reply-button]"),
@@ -62,6 +64,10 @@ const roomChatSurface = createChatSurface({
   formatDate,
   onConversationChanged: async () => {
     await refreshRooms();
+  },
+  onAccessChanged: async () => {
+    await refreshRooms();
+    await loadSelectedRoom();
   },
 });
 
