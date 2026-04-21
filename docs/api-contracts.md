@@ -19,7 +19,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `RoomAccessLevel` | `FULL`, `INVITED_PREVIEW` | `INVITED_PREVIEW` exposes only the room name and owner for invited private-room users before join |
 | `PresenceState` | `ONLINE`, `AFK`, `OFFLINE` | Derived from active tabs |
 | `MembershipRole` | `OWNER`, `ADMIN`, `MEMBER` | Room-only role model |
-| `MessageState` | `ACTIVE`, `EDITED`, `DELETED` | Message deletes stay visible as tombstones |
+| `MessageState` | `ACTIVE`, `EDITED`, `DELETED` | Shared message lifecycle enum; Milestone 4.1 creates `ACTIVE` messages only |
 | `ModerationAction` | `MEMBER_REMOVED`, `MEMBER_BANNED`, `MEMBER_UNBANNED`, `ADMIN_GRANTED`, `ADMIN_REVOKED`, `MESSAGE_DELETED`, `ROOM_DELETED` | Minimum audit vocabulary |
 | `UnreadMarker` | `{ chat, lastReadMessageId, updatedAt }` | One marker per user and chat |
 | `SessionSummary` | `{ id, current, createdAt, lastSeenAt, userAgent, ipAddress }` | Returned by active-session APIs |
@@ -94,11 +94,47 @@ The implemented contacts surface now includes friend-request create, accept, rej
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/chats/{chatType}/{chatId}/messages` | Read a page of message history | Supports `before` cursor and `limit`; returns chronological items plus next cursor |
-| `POST` | `/api/chats/{chatType}/{chatId}/messages` | Send a new message | UTF-8 text up to 3 KB, optional reply target |
-| `PATCH` | `/api/messages/{messageId}` | Edit own message | Server marks edited state |
-| `DELETE` | `/api/messages/{messageId}` | Delete message | Author or room moderator depending on chat type |
-| `POST` | `/api/chats/{chatType}/{chatId}/read-markers` | Advance caller read marker | Used to clear unread indicators |
+| `GET` | `/api/chats/{chatType}/{chatId}/messages` | Read a page of message history | Implemented in Milestone 4.1. Supports `before` as the oldest visible message id and `limit` with a default of `50` and a max of `100`; returns chronological `items` plus `nextBeforeMessageId` |
+| `POST` | `/api/chats/{chatType}/{chatId}/messages` | Send a new message | Implemented in Milestone 4.1. Request body is `{ bodyText }`; UTF-8 text up to 3 KB; replies remain deferred |
+| `PATCH` | `/api/messages/{messageId}` | Edit own message | Deferred beyond Milestone 4.1 |
+| `DELETE` | `/api/messages/{messageId}` | Delete message | Deferred beyond Milestone 4.1 |
+| `POST` | `/api/chats/{chatType}/{chatId}/read-markers` | Advance caller read marker | Implemented in Milestone 4.1. Request body is `{ lastReadMessageId }`; the marker moves only forward and returns the current `UnreadMarker` |
+
+Milestone 4.1 response shapes:
+
+- `POST /api/chats/{chatType}/{chatId}/messages`
+
+```json
+{
+  "id": "uuid",
+  "chat": {
+    "type": "ROOM",
+    "id": "uuid"
+  },
+  "author": {
+    "id": "uuid",
+    "username": "captain",
+    "displayName": "Captain",
+    "deleted": false
+  },
+  "bodyText": "Hello room",
+  "state": "ACTIVE",
+  "createdAt": "2026-04-21T12:00:00Z"
+}
+```
+
+- `GET /api/chats/{chatType}/{chatId}/messages`
+
+```json
+{
+  "chat": {
+    "type": "ROOM",
+    "id": "uuid"
+  },
+  "items": [],
+  "nextBeforeMessageId": "uuid or null"
+}
+```
 
 ### Attachments
 
@@ -125,6 +161,9 @@ The implemented contacts surface now includes friend-request create, accept, rej
 - The exact supported stanza set and federation depth remain an implementation bet until the XMPP milestone closes, but the feature itself is mandatory acceptance scope.
 
 ## WebSocket Contract
+
+The contract below remains planned Milestone 4 work.
+`/ws` is not implemented in Milestone 4.1.
 
 - Path: `/ws`
 - Authentication: session cookie from the same origin login flow
@@ -171,7 +210,7 @@ The implemented contacts surface now includes friend-request create, accept, rej
 ## History And Access Rules
 - Initial history load returns the newest page for the selected chat.
 - The response order within a page is chronological to keep rendering simple.
-- `before` is an opaque cursor representing the oldest message already shown. The next page loads older messages.
+- In Milestone 4.1, `before` is the oldest message id already shown. The next page loads older messages.
 - Room history reads require current room membership. Banned or removed users must receive authorization failure immediately.
 - Direct-dialog history reads require that the caller is one of the dialog participants. Existing history stays readable after friendship removal or block, but new sends are denied while the pair is ineligible.
 - Attachment reads use the same room or direct-dialog authorization path as message history. Authorization is never based only on upload ownership.

@@ -25,6 +25,8 @@ public interface ContactsPersistencePort {
 
     Optional<StoredUserBlock> findUserBlock(UUID blockerUserId, UUID blockedUserId);
 
+    Optional<StoredDirectDialog> findDirectDialogById(UUID dialogId);
+
     Optional<StoredDirectDialog> findDirectDialog(UUID userLowId, UUID userHighId);
 
     StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request);

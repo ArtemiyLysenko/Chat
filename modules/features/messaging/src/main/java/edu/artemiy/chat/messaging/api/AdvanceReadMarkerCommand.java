@@ -1,14 +1,12 @@
 package edu.artemiy.chat.messaging.api;
 
-import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
-public record UnreadMarker(ChatTargetRef chat, UUID lastReadMessageId, Instant updatedAt) {
+public record AdvanceReadMarkerCommand(ChatTargetRef chat, UUID lastReadMessageId) {
 
-    public UnreadMarker {
+    public AdvanceReadMarkerCommand {
         Objects.requireNonNull(chat, "Chat target is required.");
         Objects.requireNonNull(lastReadMessageId, "Last read message id is required.");
-        Objects.requireNonNull(updatedAt, "Unread marker timestamp is required.");
     }
 }

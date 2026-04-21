@@ -42,7 +42,7 @@ It builds on ADR 0001 and should be read together with:
 | Presence | Per-tab activity tracking, user online and AFK transitions, low-latency presence fan-out | PostgreSQL plus in-process connection state |
 | Contacts and direct messaging | Friend requests, accepted friendships, user blocks, centralized direct-message eligibility, stable direct-dialog identity, dedicated placeholder UI, and contacts-side account-deletion cleanup that preserves direct dialogs | PostgreSQL |
 | Rooms and moderation | Public catalog, private room membership, invitations, roles, bans, room deletion, moderation audit | PostgreSQL |
-| Messaging and history | Message creation, edit, delete, reply links, unread markers, cursor-based history loading | PostgreSQL |
+| Messaging and history | Milestone 4.1 HTTP message creation, cursor-based history loading, and forward-only unread markers across rooms and direct dialogs. Reply, edit, delete, WebSocket push, and the real timeline UI remain later Milestone 4 work | PostgreSQL |
 | Attachments and access control | Upload metadata, binary storage, download authorization, room-access revocation | PostgreSQL plus local filesystem |
 | XMPP and federation | Jabber client interoperability, server-to-server routing, peer status, and federation traffic statistics | PostgreSQL plus XMPP runtime state |
 
@@ -74,8 +74,8 @@ It builds on ADR 0001 and should be read together with:
    Public rooms are discoverable and their full details are readable by authenticated users unless banned. Private rooms require invitation for join, and invited users only see the room name and owner before they join. Role changes, bans, removals, and room deletion must update database state consistently, with member removal keeping regular-member removal separate from admin removal plus ban.
 3. Friendship to direct-dialog eligibility
    Milestone 3 now lets authenticated users create friend requests by username or user id, auto-accept the opposite-direction pending request, accept or reject inbound requests, remove friendships, block or unblock users, ensure or reopen a stable direct dialog per ordered user pair, and review accepted, pending, blocked, and placeholder direct-dialog state through the dedicated contacts flow. The shared direct-message eligibility rule depends on active friendship plus no block in either direction. Direct-message sending, history, unread state, and realtime fan-out remain Milestone 4 work.
-4. Message send, edit, delete, and unread updates
-   Writes land in PostgreSQL first, then emit WebSocket events to all still-authorized sessions. Message edits and deletions are represented as state changes rather than row removal in the normal path.
+4. Message send, history reads, and unread updates
+   Milestone 4.1 writes land in PostgreSQL first over HTTP and history reads use cursor pagination over the same store. The current implementation covers send, newest-page load, older-page load by `before`, and forward-only read-marker updates. Reply, edit, delete, and WebSocket fan-out remain deferred to later Milestone 4 slices.
 5. Attachment upload and download authorization
    Uploads write metadata to PostgreSQL and file bytes to `storage/`. Downloads always re-check current room or direct-dialog eligibility so access revocation is immediate.
 6. Multi-tab presence transitions

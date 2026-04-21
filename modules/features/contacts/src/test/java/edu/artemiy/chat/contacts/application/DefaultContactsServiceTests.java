@@ -471,6 +471,11 @@ class DefaultContactsServiceTests {
         }
 
         @Override
+        public Optional<StoredDirectDialog> findDirectDialogById(UUID dialogId) {
+            return Optional.ofNullable(directDialogs.get(dialogId));
+        }
+
+        @Override
         public Optional<StoredDirectDialog> findDirectDialog(UUID userLowId, UUID userHighId) {
             return directDialogs.values().stream()
                 .filter(dialog -> dialog.userLowId().equals(userLowId))

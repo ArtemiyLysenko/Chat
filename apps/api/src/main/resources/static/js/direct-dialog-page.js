@@ -68,7 +68,7 @@ const loadDialog = async () => {
       detailLine("Chat reference", `DIRECT:${dialog.dialogId}`),
       detailLine("Established", formatDate(dialog.createdAt)),
     );
-    placeholderElement.textContent = "Messaging controls, history, and unread indicators are intentionally absent in this milestone.";
+    placeholderElement.textContent = "The backend messaging endpoints exist in Milestone 4.1, but this placeholder still omits the real timeline, composer, and unread UI.";
   } catch (error) {
     titleElement.textContent = "Direct dialog unavailable";
     participantElement.replaceChildren(mutedBlock("No participant details are available."));

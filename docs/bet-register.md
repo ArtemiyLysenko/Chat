@@ -19,6 +19,7 @@
 
 ## Open Questions
 - Does B2 hold once presence and unread fan-out are exercised under realistic concurrent tab activity?
+- Does the Milestone 4.1 history paging default of 50 messages with a max of 100 remain appropriate once the real timeline UI and larger message histories are exercised?
 - Which narrow in-process XMPP protocol subset and supporting Java libraries are the most pragmatic mandatory path for this repository?
 - What two-server compose topology is the cleanest path to the required federation validation and 50-plus clients per side load test?
 

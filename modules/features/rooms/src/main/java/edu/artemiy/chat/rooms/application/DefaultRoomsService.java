@@ -16,6 +16,9 @@ import edu.artemiy.chat.rooms.api.ModerationAction;
 import edu.artemiy.chat.rooms.api.RoomAccessLevel;
 import edu.artemiy.chat.rooms.api.RoomBanRecord;
 import edu.artemiy.chat.rooms.api.RoomDetails;
+import edu.artemiy.chat.rooms.api.RoomMessagingAccess;
+import edu.artemiy.chat.rooms.api.RoomMessagingAccessQuery;
+import edu.artemiy.chat.rooms.api.RoomMessagingAccessStatus;
 import edu.artemiy.chat.rooms.api.RoomMember;
 import edu.artemiy.chat.rooms.api.RoomScope;
 import edu.artemiy.chat.rooms.api.RoomSummary;
@@ -42,7 +45,7 @@ import edu.artemiy.chat.rooms.spi.StoredRoomMembership;
 import edu.artemiy.chat.rooms.spi.StoredRoomUser;
 
 @Service
-public class DefaultRoomsService implements RoomsService {
+public class DefaultRoomsService implements RoomsService, RoomMessagingAccessQuery {
 
     private final ClockPort clockPort;
     private final RoomPersistencePort roomPersistencePort;
@@ -442,6 +445,24 @@ public class DefaultRoomsService implements RoomsService {
             null,
             now
         )));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RoomMessagingAccess evaluateRoomMessagingAccess(UUID actorUserId, UUID roomId) {
+        requireActiveUser(actorUserId);
+        StoredRoom room = roomPersistencePort.findRoom(roomId).orElse(null);
+        if (room == null) {
+            return new RoomMessagingAccess(roomId, RoomMessagingAccessStatus.ROOM_NOT_FOUND, null);
+        }
+        if (roomPersistencePort.findBan(roomId, actorUserId).isPresent()) {
+            return new RoomMessagingAccess(roomId, RoomMessagingAccessStatus.BANNED, null);
+        }
+        StoredRoomMembership membership = roomPersistencePort.findMembership(roomId, actorUserId).orElse(null);
+        if (membership == null) {
+            return new RoomMessagingAccess(roomId, RoomMessagingAccessStatus.NOT_MEMBER, null);
+        }
+        return new RoomMessagingAccess(roomId, RoomMessagingAccessStatus.ALLOWED, membership.role());
     }
 
     private StoredRoom requireRoom(UUID roomId) {

@@ -15,6 +15,8 @@ import edu.artemiy.chat.contacts.api.ContactsErrorType;
 import edu.artemiy.chat.contacts.api.ContactsException;
 import edu.artemiy.chat.identity.api.IdentityErrorType;
 import edu.artemiy.chat.identity.api.IdentityException;
+import edu.artemiy.chat.messaging.api.MessagingErrorType;
+import edu.artemiy.chat.messaging.api.MessagingException;
 import edu.artemiy.chat.rooms.api.RoomsErrorType;
 import edu.artemiy.chat.rooms.api.RoomsException;
 
@@ -35,6 +37,12 @@ class IdentityHttpExceptionHandler {
 
     @ExceptionHandler(ContactsException.class)
     ResponseEntity<ErrorResponse> handleContactsException(ContactsException exception) {
+        return ResponseEntity.status(httpStatus(exception.errorType()))
+            .body(new ErrorResponse(exception.code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(MessagingException.class)
+    ResponseEntity<ErrorResponse> handleMessagingException(MessagingException exception) {
         return ResponseEntity.status(httpStatus(exception.errorType()))
             .body(new ErrorResponse(exception.code(), exception.getMessage()));
     }
@@ -71,6 +79,15 @@ class IdentityHttpExceptionHandler {
     }
 
     private static HttpStatusCode httpStatus(ContactsErrorType errorType) {
+        return switch (errorType) {
+            case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+        };
+    }
+
+    private static HttpStatusCode httpStatus(MessagingErrorType errorType) {
         return switch (errorType) {
             case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;

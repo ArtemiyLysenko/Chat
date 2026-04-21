@@ -16,8 +16,8 @@ The target product is a classic web chat application with:
 - admin screens for Jabber connections and federation traffic
 
 ## Current Status
-Milestone 3 is completed and verified.
-The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side and contacts-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, friend removal, user block and unblock flows, centralized direct-message eligibility rules, stable direct-dialog ensure or fetch, and a dedicated direct-dialog placeholder page linked from the dedicated contacts page. Actual direct-message sending, history, unread state, and realtime behavior remain intentionally deferred to Milestone 4.
+Milestone 4.1 is completed and verified.
+The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side and contacts-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, friend removal, user block and unblock flows, centralized direct-message eligibility rules, stable direct-dialog ensure or fetch, and the first backend messaging slice: HTTP room and direct-dialog message send, cursor-based history reads, and forward-only unread markers. Reply, edit, delete, WebSocket push, and the real chat timeline UI remain intentionally deferred to later Milestone 4 slices.
 
 ## Repository Layout
 - `apps/api` Spring Boot application and initial web delivery
@@ -66,4 +66,4 @@ See:
 - If you need interactive database access, use `docker compose exec db psql -U ${POSTGRES_USER:-chat} -d ${POSTGRES_DB:-chat}` from the repository root.
 
 ## Immediate Next Step
-Implement Milestone 4 for realtime direct-message and room-message delivery, cursor-based history reads, and unread markers on top of the verified Milestone 3 conversation eligibility foundation.
+Implement the later Milestone 4 slices for reply, edit or delete behavior, raw `/ws` realtime fan-out, and the real room or direct-dialog timeline UI on top of the verified Milestone 4.1 HTTP and persistence foundation.

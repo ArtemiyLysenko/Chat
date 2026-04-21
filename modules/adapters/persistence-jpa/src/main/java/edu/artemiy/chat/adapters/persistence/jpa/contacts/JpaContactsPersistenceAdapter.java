@@ -122,6 +122,12 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     }
 
     @Override
+    public Optional<StoredDirectDialog> findDirectDialogById(UUID dialogId) {
+        return directDialogJpaRepository.findById(dialogId)
+            .map(JpaContactsPersistenceAdapter::toStoredDirectDialog);
+    }
+
+    @Override
     public Optional<StoredDirectDialog> findDirectDialog(UUID userLowId, UUID userHighId) {
         return directDialogJpaRepository.findByUserLowIdAndUserHighId(userLowId, userHighId)
             .map(JpaContactsPersistenceAdapter::toStoredDirectDialog);

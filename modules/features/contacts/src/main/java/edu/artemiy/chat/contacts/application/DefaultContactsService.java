@@ -14,6 +14,9 @@ import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.contacts.api.ContactsView;
 import edu.artemiy.chat.contacts.api.CreateFriendRequestCommand;
 import edu.artemiy.chat.contacts.api.DirectDialogSummary;
+import edu.artemiy.chat.contacts.api.DirectDialogMessagingAccess;
+import edu.artemiy.chat.contacts.api.DirectDialogMessagingAccessQuery;
+import edu.artemiy.chat.contacts.api.DirectDialogMessagingAccessStatus;
 import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
 import edu.artemiy.chat.contacts.api.FriendContactSummary;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmission;
@@ -40,7 +43,7 @@ import edu.artemiy.chat.core.kernel.ClockPort;
 import edu.artemiy.chat.core.kernel.UsernameRules;
 
 @Service
-public class DefaultContactsService implements ContactsService {
+public class DefaultContactsService implements ContactsService, DirectDialogMessagingAccessQuery {
 
     private final ClockPort clockPort;
     private final ContactsPersistencePort contactsPersistencePort;
@@ -297,6 +300,27 @@ public class DefaultContactsService implements ContactsService {
     @Transactional
     public void handleAccountDeleted(UUID userId) {
         contactsPersistencePort.deleteRelationshipsForDeletedUser(userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DirectDialogMessagingAccess evaluateDirectDialogMessagingAccess(UUID actorUserId, UUID directDialogId) {
+        requireActiveUser(actorUserId);
+        StoredDirectDialog dialog = contactsPersistencePort.findDirectDialogById(directDialogId).orElse(null);
+        if (dialog == null) {
+            return new DirectDialogMessagingAccess(
+                directDialogId,
+                DirectDialogMessagingAccessStatus.DIRECT_DIALOG_NOT_FOUND,
+                null
+            );
+        }
+        if (dialog.userLowId().equals(actorUserId)) {
+            return new DirectDialogMessagingAccess(directDialogId, DirectDialogMessagingAccessStatus.ALLOWED, dialog.userHighId());
+        }
+        if (dialog.userHighId().equals(actorUserId)) {
+            return new DirectDialogMessagingAccess(directDialogId, DirectDialogMessagingAccessStatus.ALLOWED, dialog.userLowId());
+        }
+        return new DirectDialogMessagingAccess(directDialogId, DirectDialogMessagingAccessStatus.NOT_PARTICIPANT, null);
     }
 
     private StoredFriendship acceptLockedRequest(StoredFriendshipRequest request, Instant respondedAt) {

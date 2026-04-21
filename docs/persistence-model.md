@@ -47,10 +47,10 @@ Milestone 3 now implements `friendship_requests`, `friendships`, `user_blocks`, 
 
 | Table | Key columns | Purpose |
 | --- | --- | --- |
-| `messages` | `id`, `chat_target_type`, `room_id`, `direct_dialog_id`, `author_user_id`, `parent_message_id`, `body_text`, `state`, `created_at`, `edited_at`, `deleted_at` | Shared message model for rooms and direct dialogs |
+| `messages` | `id`, `room_id`, `direct_dialog_id`, `author_user_id`, `body_text`, `state`, `created_at` | Milestone 4.1 shared message model for rooms and direct dialogs. Reply linkage and edit or delete metadata remain deferred to later Milestone 4 slices |
 | `attachments` | `id`, `storage_key`, `original_name`, `media_type`, `size_bytes`, `sha256`, `uploaded_by_user_id`, `chat_target_type`, `room_id`, `direct_dialog_id`, `created_at` | Attachment metadata and chat ownership |
 | `message_attachments` | `message_id`, `attachment_id`, `comment_text`, `sort_order` | Attachment linkage and optional user comment |
-| `chat_unread_markers` | `id`, `user_id`, `chat_target_type`, `room_id`, `direct_dialog_id`, `last_read_message_id`, `last_read_at` | Per-user unread clearing and badges |
+| `chat_unread_markers` | `id`, `user_id`, `room_id`, `direct_dialog_id`, `last_read_message_id`, `updated_at` | Milestone 4.1 per-user unread clearing and later badge foundation. Each row references exactly one room or direct dialog target |
 
 ### XMPP And Federation
 
@@ -70,6 +70,7 @@ Milestone 3 now implements `friendship_requests`, `friendships`, `user_blocks`, 
 - `room_memberships` must be unique per active room and user pair.
 - `room_bans` must be unique per active room and user pair.
 - `messages` must reference exactly one target: either `room_id` or `direct_dialog_id`.
+- `chat_unread_markers` must reference exactly one target: either `room_id` or `direct_dialog_id`.
 - Message text must enforce the 3 KB UTF-8 maximum in both API validation and the persistence layer.
 - Attachment validation must enforce the 20 MB file limit and 3 MB image limit before bytes are written to storage.
 - Direct-dialog writes must verify an active friendship and no active block in either direction.
@@ -89,16 +90,17 @@ Milestone 3 now implements `friendship_requests`, `friendships`, `user_blocks`, 
 - `room_bans(room_id, user_id)` unique
 - `user_blocks(blocker_user_id, blocked_user_id)` unique
 - `direct_dialogs(user_low_id, user_high_id)` unique
-- `messages(room_id, created_at, id)` for room history
-- `messages(direct_dialog_id, created_at, id)` for direct-dialog history
-- `chat_unread_markers(user_id, chat_target_type, room_id, direct_dialog_id)`
+- partial `messages(room_id, created_at desc, id desc)` where `room_id` is not null for room history
+- partial `messages(direct_dialog_id, created_at desc, id desc)` where `direct_dialog_id` is not null for direct-dialog history
+- partial unique `chat_unread_markers(user_id, room_id)` where `room_id` is not null
+- partial unique `chat_unread_markers(user_id, direct_dialog_id)` where `direct_dialog_id` is not null
 - `attachments(room_id, created_at)` and `attachments(direct_dialog_id, created_at)`
 - `xmpp_client_sessions(user_id, status, connected_at)`
 - `federation_peers(peer_domain)` unique
 - `federation_traffic_samples(peer_id, sampled_at)`
 
 ## Deletion And Retention Rules
-- Deleting a room hard-deletes the room, its memberships, bans, invites, messages, unread markers, moderation events, attachment metadata, and filesystem blobs.
+- The current implementation hard-deletes a room together with its memberships, bans, invites, moderation events, messages, and unread markers. Later milestones extend the same room-owned cleanup to attachments and filesystem blobs.
 - Milestone 1 account deletion invalidates sessions, clears credentials, replaces email and username with unique tombstone values, and preserves historical non-owned messages through a tombstoned `users` row.
 - Account deletion now uses `AccountDeletionImpactPort` to delete rooms owned by the deleted user, remove their memberships from other rooms, remove invites created by or for them, remove bans targeting them, remove friendship requests, friendships, and user blocks involving them, and preserve `direct_dialogs` rows for future history linkage.
 - Tombstoned `users` rows remain in place so moderation audit records and surviving ban-actor references in non-deleted rooms can still resolve historical actors.
