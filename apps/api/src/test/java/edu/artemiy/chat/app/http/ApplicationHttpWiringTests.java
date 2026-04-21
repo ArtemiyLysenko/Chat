@@ -117,6 +117,33 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
     }
 
     @Test
+    void preservesSpaCsrfCookieAcrossMultipleUnsafeRequests() throws Exception {
+        BrowserSession browser = new BrowserSession();
+
+        registerAndLogin(browser, "captain@example.com", "captain");
+
+        HttpResponse<String> firstCreate = browser.postJson(
+            "/api/rooms",
+            """
+                {"name":"Lobby","description":null,"visibility":"PUBLIC"}
+                """,
+            true
+        );
+        assertThat(firstCreate.statusCode()).isEqualTo(201);
+        assertThat(browser.cookieValue("XSRF-TOKEN")).isNotBlank();
+
+        HttpResponse<String> secondCreate = browser.postJson(
+            "/api/rooms",
+            """
+                {"name":"Strategy","description":null,"visibility":"PRIVATE"}
+                """,
+            true
+        );
+        assertThat(secondCreate.statusCode()).isEqualTo(201);
+        assertThat(browser.cookieValue("XSRF-TOKEN")).isNotBlank();
+    }
+
+    @Test
     void appliesRedirectRulesForProtectedAndAuthPages() throws Exception {
         BrowserSession browser = new BrowserSession();
 

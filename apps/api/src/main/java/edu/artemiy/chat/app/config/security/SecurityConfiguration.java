@@ -15,8 +15,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfFilter;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 import edu.artemiy.chat.app.config.ChatProperties;
 
@@ -27,7 +25,6 @@ class SecurityConfiguration {
     SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         ChatSessionAuthenticationFilter chatSessionAuthenticationFilter,
-        CsrfCookieFilter csrfCookieFilter,
         ChatProperties chatProperties
     ) throws Exception {
         CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -41,7 +38,7 @@ class SecurityConfiguration {
         http
             .csrf(csrf -> csrf
                 .csrfTokenRepository(csrfTokenRepository)
-                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
             )
             .cors(Customizer.withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -81,8 +78,7 @@ class SecurityConfiguration {
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> commenceAuthentication(request.getRequestURI(), response))
             )
-            .addFilterBefore(chatSessionAuthenticationFilter, AnonymousAuthenticationFilter.class)
-            .addFilterAfter(csrfCookieFilter, CsrfFilter.class);
+            .addFilterBefore(chatSessionAuthenticationFilter, AnonymousAuthenticationFilter.class);
 
         return http.build();
     }

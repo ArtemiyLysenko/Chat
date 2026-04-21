@@ -46,7 +46,11 @@ const formatDate = (value) =>
 const roomUrl = (roomId) => `/app?room=${encodeURIComponent(roomId)}`;
 
 const setSelectedRoom = async (roomId, { silent = false } = {}) => {
-  state.selectedRoomId = roomId ?? "";
+  const nextRoomId = roomId ?? "";
+  if (nextRoomId !== state.selectedRoomId) {
+    clearMessage(roomModerationMessage);
+  }
+  state.selectedRoomId = nextRoomId;
   const nextUrl = state.selectedRoomId ? roomUrl(state.selectedRoomId) : "/app";
   window.history.replaceState(null, "", nextUrl);
   if (!silent) {
@@ -431,14 +435,13 @@ const renderRoomActions = (details) => {
 };
 
 const renderSelectedRoom = () => {
-  clearMessage(roomModerationMessage);
-
   if (!state.selectedRoom) {
     roomEmpty.hidden = false;
     roomContent.hidden = true;
     roomTitle.textContent = "";
     roomMeta.textContent = "";
     roomPreview.hidden = true;
+    clearMessage(roomModerationMessage);
     roomMembers.replaceChildren();
     roomInviteControls.replaceChildren();
     roomBanControls.replaceChildren();
