@@ -1,4 +1,5 @@
-import { bindAsyncForm, bindLogoutButton, clearMessage, jsonRequest, writeMessage } from "./common.js";
+import { bindAsyncForm, bindLogoutButton, clearMessage, createCoalescedTask, jsonRequest, writeMessage } from "./common.js";
+import { createLiveUpdatesClient } from "./live-updates.js";
 
 bindLogoutButton(document.querySelector("[data-logout-button]"));
 
@@ -266,6 +267,19 @@ const refreshContacts = async ({ preserveMessage = false } = {}) => {
   state.contacts = await jsonRequest("/api/contacts");
   render();
 };
+
+const refreshContactsLive = createCoalescedTask(async () => {
+  await refreshContacts({ preserveMessage: true });
+});
+
+createLiveUpdatesClient({
+  onEvent: async (event) => {
+    if (event?.type === "unread.updated" && event?.chat?.type === "DIRECT") {
+      await refreshContactsLive();
+    }
+  },
+  onReconnect: refreshContactsLive,
+});
 
 bindAsyncForm(createRequestForm, createRequestMessage, async (formData) => {
   const username = formData.get("username")?.toString().trim() ?? "";

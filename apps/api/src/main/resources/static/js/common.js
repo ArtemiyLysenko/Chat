@@ -1,6 +1,40 @@
+const FLASH_MESSAGE_STORAGE_KEY = "chat.flash.message";
+
+export const setFlashMessage = (kind, message) => {
+  try {
+    window.sessionStorage.setItem(FLASH_MESSAGE_STORAGE_KEY, JSON.stringify({ kind, message }));
+  } catch {
+  }
+};
+
+export const consumeFlashMessage = () => {
+  try {
+    const payload = window.sessionStorage.getItem(FLASH_MESSAGE_STORAGE_KEY);
+    if (!payload) {
+      return null;
+    }
+    window.sessionStorage.removeItem(FLASH_MESSAGE_STORAGE_KEY);
+    return JSON.parse(payload);
+  } catch {
+    try {
+      window.sessionStorage.removeItem(FLASH_MESSAGE_STORAGE_KEY);
+    } catch {
+    }
+    return null;
+  }
+};
+
+export const redirectToLogin = (message = "This session is no longer active. Sign in again.") => {
+  setFlashMessage("error", message);
+  if (window.location.pathname === "/login") {
+    return;
+  }
+  window.location.assign("/login");
+};
+
 const redirectIfUnauthorized = (response) => {
   if (response.status === 401) {
-    window.location.assign("/login");
+    redirectToLogin("This session is no longer active. Sign in again.");
     return true;
   }
   return false;
@@ -83,4 +117,27 @@ export const bindLogoutButton = (button) => {
       window.location.assign("/login");
     }
   });
+};
+
+export const createCoalescedTask = (task) => {
+  let running = null;
+  let queued = false;
+
+  const run = async () => {
+    do {
+      queued = false;
+      await task();
+    } while (queued);
+  };
+
+  return async () => {
+    if (running) {
+      queued = true;
+      return running;
+    }
+    running = run().finally(() => {
+      running = null;
+    });
+    return running;
+  };
 };

@@ -199,7 +199,7 @@ Milestone 4.2 response shapes:
 ## WebSocket Contract
 
 Milestone 4.3 implements the authenticated backend `/ws` channel.
-Milestone 4.4 later wires the room and direct-dialog browser UI to these events and adds reconnect behavior.
+Milestone 4.4 now wires the room shell, contacts workspace, and direct-dialog browser UI to these events and adds reconnect behavior.
 
 - Path: `/ws`
 - Authentication: session cookie from the same origin login flow
@@ -259,6 +259,7 @@ Milestone 4.3 currently fans out:
 
 Current backend behavior:
 - Milestone 4.3 accepts `subscription.resume` as a forward-compatible reconnect hint without server-side replay.
+- Milestone 4.4 browser clients now send `subscription.resume` with the last seen event id and refresh HTTP-backed room, contact, or direct-dialog state after reconnect.
 - `tab.activity` and `tab.closed` stay reserved for Milestone 6 presence handling.
 
 ## History And Access Rules

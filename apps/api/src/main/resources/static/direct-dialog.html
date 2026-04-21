@@ -39,9 +39,9 @@
               <section class="panel">
                 <h3>Milestone 4 notes</h3>
                 <ul class="notes">
-                  <li>Replies, edits, deletes, and unread badges are HTTP-driven only in this slice.</li>
+                  <li>Replies, edits, deletes, and read-marker writes still stay on HTTP.</li>
                   <li>Uploads remain disabled until Milestone 5.</li>
-                  <li>The authenticated backend `/ws` transport is available, but this screen still uses HTTP refresh until Milestone 4.4 wires live updates.</li>
+                  <li>Direct unread badges, reconnect refresh, and open-dialog timeline updates now consume the authenticated `/ws` channel.</li>
                 </ul>
               </section>
             </aside>
@@ -103,7 +103,7 @@
               <section class="detail-card">
                 <h3>Transport note</h3>
                 <div class="muted-block" data-dialog-placeholder>
-                  This screen still uses HTTP history reads and message mutations. The backend `/ws` channel exists already, and live browser wiring lands in Milestone 4.4.
+                  This screen reads and mutates direct messages over HTTP while live updates and session revocation now arrive through the authenticated `/ws` channel.
                 </div>
               </section>
             </aside>

@@ -1,0 +1,24 @@
+{
+  "users": {
+    "alice": {
+      "email": "m44a1776802252323@example.com",
+      "username": "m44a1776802252323"
+    },
+    "bob": {
+      "email": "m44b1776802252323@example.com",
+      "username": "m44b1776802252323"
+    },
+    "bobUserId": "04e3ac69-61dc-4469-a1ff-0f946514b1f9"
+  },
+  "roomId": "5a500603-1e03-4acb-92af-f7eb7c7816e4",
+  "dialogId": "92c19f09-6615-4001-b538-7f6d4938692c",
+  "timings": {
+    "roomUnreadBadgeMs": 56,
+    "roomTimelineLiveMs": 38,
+    "directUnreadBadgeMs": 40,
+    "directTimelineLiveMs": 35,
+    "appRestartRecoverMs": 3873,
+    "directPostReconnectLiveMs": 81,
+    "sessionRevocationRedirectMs": 38
+  }
+}

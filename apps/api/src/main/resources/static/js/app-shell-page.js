@@ -1,5 +1,6 @@
-import { bindAsyncForm, bindLogoutButton, clearMessage, jsonRequest, writeMessage } from "./common.js";
+import { bindAsyncForm, bindLogoutButton, clearMessage, createCoalescedTask, jsonRequest, writeMessage } from "./common.js";
 import { createChatSurface } from "./chat-view.js";
+import { createLiveUpdatesClient } from "./live-updates.js";
 
 bindLogoutButton(document.querySelector("[data-logout-button]"));
 
@@ -555,6 +556,49 @@ const loadSelectedRoom = async () => {
     throw error;
   }
 };
+
+const refreshRoomListsLive = createCoalescedTask(async () => {
+  await refreshRooms();
+});
+
+const refreshSelectedRoomLive = createCoalescedTask(async () => {
+  await refreshRooms();
+  await loadSelectedRoom();
+});
+
+const refreshOpenRoomChatLive = createCoalescedTask(async () => {
+  await roomChatSurface.refresh();
+});
+
+const shouldRefreshOpenRoomChat = (event) =>
+  event?.chat?.type === "ROOM"
+  && state.selectedRoom?.accessLevel === "FULL"
+  && state.selectedRoom?.viewerRole != null
+  && state.selectedRoom?.id === event.chat.id;
+
+const handleLiveRoomEvent = async (event) => {
+  switch (event?.type) {
+    case "message.created":
+    case "message.updated":
+    case "message.deleted":
+      if (shouldRefreshOpenRoomChat(event)) {
+        await refreshOpenRoomChatLive();
+      }
+      break;
+    case "unread.updated":
+      if (event?.chat?.type === "ROOM") {
+        await refreshRoomListsLive();
+      }
+      break;
+    default:
+      break;
+  }
+};
+
+createLiveUpdatesClient({
+  onEvent: handleLiveRoomEvent,
+  onReconnect: refreshSelectedRoomLive,
+});
 
 roomRefreshChatButton.addEventListener("click", async () => {
   roomRefreshChatButton.disabled = true;

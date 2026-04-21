@@ -1,7 +1,12 @@
-import { bindAsyncForm, jsonRequest, writeMessage } from "./common.js";
+import { bindAsyncForm, consumeFlashMessage, jsonRequest, writeMessage } from "./common.js";
 
 const form = document.querySelector("[data-login-form]");
 const message = document.querySelector("[data-form-message]");
+
+const flashMessage = consumeFlashMessage();
+if (flashMessage) {
+  writeMessage(message, flashMessage.kind, flashMessage.message);
+}
 
 bindAsyncForm(form, message, async (formData) => {
   await jsonRequest("/api/auth/login", {

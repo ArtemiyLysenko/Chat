@@ -4,8 +4,8 @@
 Milestone 4 turns the app into a usable chat system.
 It is intentionally split into narrow slices so the HTTP and persistence foundation can land before live push and WebSocket-specific behavior.
 
-Milestone 4.1, Milestone 4.2, and the backend slice of Milestone 4.3 are now implemented.
-The milestone is not closed yet because Milestone 4.4 still needs to wire the browser UI to the live `/ws` channel and complete reconnect behavior.
+Milestone 4 is completed and verified.
+The app now covers the full messaging, history, unread-marker, realtime browser, reconnect, and live session-revocation scope planned for this milestone.
 
 ## Delivered Slices
 - Milestone 4.1 foundation
@@ -28,20 +28,21 @@ The milestone is not closed yet because Milestone 4.4 still needs to wire the br
   - backend fan-out for `message.created`, `message.updated`, `message.deleted`, and `unread.updated`
   - live socket invalidation on session revocation through `session.revoked`
   - WebSocket integration coverage for message fan-out, unread updates, handshake auth, and live session revocation
+- Milestone 4.4 browser closeout
+  - room shell and direct-dialog browser UI consume live `/ws` message or unread events
+  - contacts workspace unread badges now refresh live for direct messages
+  - browser reconnect sends `subscription.resume` and refreshes HTTP-backed room, contact, or dialog state after reconnect
+  - live browser sessions redirect to sign in when the current session is revoked
+  - browser proof covers room or direct unread badges, live timelines, reconnect after app restart, and session revocation redirect
 
 ## Remaining Milestone 4 Scope
-- Milestone 4.4 only
-  - wire the room and direct-dialog browser UI to live `/ws` events
-  - add reconnect behavior and HTTP refresh after reconnect where needed
-  - keep session-revocation behavior visible to live browser tabs
-  - close full Milestone 4 and update the repo status docs
+- None. Milestone 4 is closed.
 
 ## Out Of Scope
 - Attachments
 - Presence and tab activity
 - XMPP interoperability
 - Federation
-- For Milestone 4.3 specifically: browser-side reconnect polish, live room or direct-dialog UI updates, and the Milestone 4 closeout docs
 
 ## Milestone 4.2 Locks
 - Keep one reusable messaging domain path for room and direct-dialog rules inside `modules/features/messaging`.
@@ -71,9 +72,10 @@ The milestone is not closed yet because Milestone 4.4 still needs to wire the br
 4. Milestone 4.3 backend
    - Add `/ws` push only after the HTTP lifecycle and UI remain stable.
    - Reuse the Milestone 1 auth store as the source of truth for live-session validity.
-5. Milestone 4.4 UI closeout later
-   - Reconnect through the authenticated `/ws` channel and refresh HTTP-backed room or contact state after reconnect.
-   - Keep the HTTP mutation path as the only write path while the browser starts consuming live server events.
+5. Milestone 4.4 UI closeout
+   - Reconnect through the authenticated `/ws` channel and refresh HTTP-backed room, contact, or direct-dialog state after reconnect.
+   - Keep the HTTP mutation path as the only write path while the browser consumes live server events.
+   - Redirect live browser tabs to sign in when the current session is revoked.
 
 ## Tests And Evidence
 - Automated
@@ -83,11 +85,11 @@ The milestone is not closed yet because Milestone 4.4 still needs to wire the br
   - Milestone 4.3: WebSocket integration tests for `message.created`, `message.updated`, `message.deleted`, `unread.updated`, handshake auth, and live session revocation
 - Manual
   - Milestone 4.2 browser proof for room timeline render, direct-dialog timeline render, send, reply, edit, delete, tombstoned-author render, and unread badge clear-through-read behavior
-  - Milestone 4.4 later: reconnect and live fan-out proof
+  - Milestone 4.4 browser proof for live room unread badges, live direct unread badges, room or direct timeline refresh, reconnect after app restart, and session revocation redirect
 
 ## Exit Criteria
 - Milestone 4.1 ends with the HTTP and persistence foundation in place for rooms and direct dialogs.
 - Milestone 4.2 ends with HTTP-driven room and direct-dialog chat screens, reply or edit or delete behavior, and unread badges without claiming live push.
 - Milestone 4.3 is the only backend slice that introduces `/ws` or live session-revocation handling.
-- Milestone 4.4 closes the remaining browser live-update behavior and the milestone status docs.
+- Milestone 4.4 closes the remaining browser live-update behavior, reconnect handling, and the milestone status docs.
 - Each completed slice ends with a green `./gradlew test` and a dated evidence note in `docs/evidence/`.

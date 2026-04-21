@@ -1,5 +1,6 @@
-import { bindLogoutButton, clearMessage, jsonRequest, writeMessage } from "./common.js";
+import { bindLogoutButton, clearMessage, createCoalescedTask, jsonRequest, writeMessage } from "./common.js";
 import { createChatSurface } from "./chat-view.js";
+import { createLiveUpdatesClient } from "./live-updates.js";
 
 bindLogoutButton(document.querySelector("[data-logout-button]"));
 
@@ -148,13 +149,54 @@ const renderDialogDetails = (dialog) => {
     detailLine("Established", formatDate(dialog.createdAt)),
   );
 
-  placeholderElement.textContent = "This screen still reads and mutates direct messages over HTTP. The backend /ws channel is live, and browser-side live updates land in Milestone 4.4.";
+  placeholderElement.textContent = "This screen reads and mutates direct messages over HTTP while live updates and session revocation now arrive through the authenticated /ws channel.";
 };
 
 const refreshContacts = async () => {
   state.contacts = await jsonRequest("/api/contacts");
   renderFriendsList();
 };
+
+const refreshDirectContactsLive = createCoalescedTask(async () => {
+  await refreshContacts();
+});
+
+const reloadDialogPageLive = createCoalescedTask(async () => {
+  await loadPage();
+});
+
+const refreshOpenDirectChatLive = createCoalescedTask(async () => {
+  await directChatSurface.refresh();
+});
+
+const shouldRefreshOpenDirectChat = (event) =>
+  event?.chat?.type === "DIRECT"
+  && state.dialog != null
+  && state.dialog.dialogId === event.chat.id;
+
+const handleLiveDirectEvent = async (event) => {
+  switch (event?.type) {
+    case "message.created":
+    case "message.updated":
+    case "message.deleted":
+      if (shouldRefreshOpenDirectChat(event)) {
+        await refreshOpenDirectChatLive();
+      }
+      break;
+    case "unread.updated":
+      if (event?.chat?.type === "DIRECT") {
+        await refreshDirectContactsLive();
+      }
+      break;
+    default:
+      break;
+  }
+};
+
+createLiveUpdatesClient({
+  onEvent: handleLiveDirectEvent,
+  onReconnect: reloadDialogPageLive,
+});
 
 const loadPage = async () => {
   const userId = participantUserId();
