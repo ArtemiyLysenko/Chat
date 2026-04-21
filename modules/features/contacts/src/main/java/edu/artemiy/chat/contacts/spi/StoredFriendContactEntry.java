@@ -9,6 +9,7 @@ public record StoredFriendContactEntry(
     String otherUsername,
     String otherDisplayName,
     boolean otherDeleted,
+    UUID directDialogId,
     Instant friendsSince
 ) {
 }

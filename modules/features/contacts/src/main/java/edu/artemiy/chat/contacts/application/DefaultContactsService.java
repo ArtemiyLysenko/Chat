@@ -446,6 +446,7 @@ public class DefaultContactsService implements ContactsService, DirectDialogMess
         return new FriendContactSummary(
             entry.friendshipId(),
             toUserSummary(entry.otherUserId(), entry.otherUsername(), entry.otherDisplayName(), entry.otherDeleted()),
+            entry.directDialogId(),
             entry.friendsSince()
         );
     }

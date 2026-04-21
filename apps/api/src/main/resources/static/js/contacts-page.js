@@ -48,7 +48,14 @@ const actionButton = (label, kind = "primary") => {
   return button;
 };
 
-const userLabel = (user) => `${user.displayName} (@${user.username})`;
+const rolePill = (text, extraClass = "") => {
+  const element = document.createElement("span");
+  element.className = `pill${extraClass ? ` ${extraClass}` : ""}`;
+  element.textContent = text;
+  return element;
+};
+
+const userLabel = (user) => (user.deleted ? user.displayName : `${user.displayName} (@${user.username})`);
 
 const performContactsAction = async (request, successMessage) => {
   try {
@@ -60,16 +67,28 @@ const performContactsAction = async (request, successMessage) => {
   }
 };
 
-const contactCard = (title, details, actions = []) => {
+const contactCard = (title, details, actions = [], badges = []) => {
   const article = document.createElement("article");
   article.className = "contact-card";
+
+  const top = document.createElement("div");
+  top.className = "split";
 
   const info = document.createElement("div");
   const name = document.createElement("strong");
   name.textContent = title;
   info.append(name, ...details.map(summaryLine));
 
-  article.append(info);
+  top.append(info);
+
+  if (badges.length > 0) {
+    const badgeWrap = document.createElement("div");
+    badgeWrap.className = "stack inline-stack";
+    badgeWrap.append(...badges);
+    top.append(badgeWrap);
+  }
+
+  article.append(top);
 
   if (actions.length > 0) {
     const actionsWrap = document.createElement("div");
@@ -109,11 +128,25 @@ const renderFriends = () => {
       );
     });
 
+    const details = [`Friends since ${formatDate(friend.friendsSince)}`];
+    if (friend.directDialogId) {
+      details.push(`Stable dialog ready: ${friend.directDialogId}`);
+    } else {
+      details.push("No dialog id exists yet. Opening the dialog will create or reuse one.");
+    }
+    if (friend.unreadCount > 0) {
+      details.push(`${friend.unreadCount} unread message${friend.unreadCount === 1 ? "" : "s"}`);
+    }
+    if (friend.user.deleted) {
+      details.push("Tombstoned account");
+    }
+
     friendsList.append(
       contactCard(
         userLabel(friend.user),
-        [`Friends since ${formatDate(friend.friendsSince)}`],
-        [openDialogButton, removeFriendButton, blockButton]
+        details,
+        [openDialogButton, removeFriendButton, blockButton],
+        friend.unreadCount > 0 ? [rolePill(`${friend.unreadCount} unread`, "badge")] : []
       )
     );
   }

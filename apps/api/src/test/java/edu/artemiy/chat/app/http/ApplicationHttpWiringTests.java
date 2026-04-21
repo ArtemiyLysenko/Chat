@@ -157,6 +157,10 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         assertThat(unauthenticatedProtectedStaticPage.statusCode()).isEqualTo(302);
         assertThat(redirectPath(unauthenticatedProtectedStaticPage)).isEqualTo("/login");
 
+        HttpResponse<String> unauthenticatedContactsPage = browser.get("/app/contacts");
+        assertThat(unauthenticatedContactsPage.statusCode()).isEqualTo(302);
+        assertThat(redirectPath(unauthenticatedContactsPage)).isEqualTo("/login");
+
         HttpResponse<String> unauthenticatedDirectDialogPage = browser.get("/app/direct-dialogs/11111111-1111-1111-1111-111111111111");
         assertThat(unauthenticatedDirectDialogPage.statusCode()).isEqualTo(302);
         assertThat(redirectPath(unauthenticatedDirectDialogPage)).isEqualTo("/login");
@@ -179,9 +183,13 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         assertThat(authenticatedProtectedStaticPage.statusCode()).isEqualTo(200);
         assertThat(authenticatedProtectedStaticPage.body()).contains("Password change");
 
+        HttpResponse<String> authenticatedContactsPage = browser.get("/app/contacts");
+        assertThat(authenticatedContactsPage.statusCode()).isEqualTo(200);
+        assertThat(authenticatedContactsPage.body()).contains("Accepted friends");
+
         HttpResponse<String> authenticatedDirectDialogPage = browser.get("/app/direct-dialogs/11111111-1111-1111-1111-111111111111");
         assertThat(authenticatedDirectDialogPage.statusCode()).isEqualTo(200);
-        assertThat(authenticatedDirectDialogPage.body()).contains("Direct dialog placeholder");
+        assertThat(authenticatedDirectDialogPage.body()).contains("Direct dialog workspace");
     }
 
     @Test

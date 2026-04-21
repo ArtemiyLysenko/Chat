@@ -2,7 +2,9 @@ package edu.artemiy.chat.messaging.application;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -15,10 +17,13 @@ import edu.artemiy.chat.contacts.api.DirectDialogMessagingAccessStatus;
 import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
 import edu.artemiy.chat.core.kernel.ClockPort;
 import edu.artemiy.chat.messaging.api.AdvanceReadMarkerCommand;
+import edu.artemiy.chat.messaging.api.ChatUnreadCount;
 import edu.artemiy.chat.messaging.api.ChatMessage;
 import edu.artemiy.chat.messaging.api.ChatTargetRef;
+import edu.artemiy.chat.messaging.api.EditMessageCommand;
 import edu.artemiy.chat.messaging.api.MessageAuthor;
 import edu.artemiy.chat.messaging.api.MessageHistoryPage;
+import edu.artemiy.chat.messaging.api.MessageReplyTarget;
 import edu.artemiy.chat.messaging.api.MessageState;
 import edu.artemiy.chat.messaging.api.MessagingErrorType;
 import edu.artemiy.chat.messaging.api.MessagingException;
@@ -30,7 +35,9 @@ import edu.artemiy.chat.messaging.domain.MessageBodyRules;
 import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
 import edu.artemiy.chat.messaging.spi.StoredMessage;
+import edu.artemiy.chat.messaging.spi.StoredMessageReplyTarget;
 import edu.artemiy.chat.messaging.spi.StoredUnreadMarker;
+import edu.artemiy.chat.rooms.api.MembershipRole;
 import edu.artemiy.chat.rooms.api.RoomMessagingAccess;
 import edu.artemiy.chat.rooms.api.RoomMessagingAccessQuery;
 import edu.artemiy.chat.rooms.api.RoomMessagingAccessStatus;
@@ -63,12 +70,21 @@ public class DefaultMessagingService implements MessagingService {
     public ChatMessage sendMessage(UUID actorUserId, SendMessageCommand command) {
         ChatTargetRef chat = command.chat();
         String bodyText = MessageBodyRules.requireValid(command.bodyText());
-        authorizeSend(actorUserId, chat);
+        requireSendAccess(actorUserId, chat);
+        StoredMessage replyTarget = command.parentMessageId() == null
+            ? null
+            : requireMessageInChat(
+                command.parentMessageId(),
+                chat,
+                "messaging.reply_target_invalid",
+                "Reply targets must reference a message in the selected chat."
+            );
 
         StoredMessage storedMessage = messagingPersistencePort.createMessage(new NewMessageRecord(
             UUID.randomUUID(),
             chat,
             actorUserId,
+            replyTarget == null ? null : replyTarget.id(),
             bodyText,
             MessageState.ACTIVE,
             clockPort.now()
@@ -77,10 +93,39 @@ public class DefaultMessagingService implements MessagingService {
     }
 
     @Override
+    @Transactional
+    public ChatMessage editMessage(UUID actorUserId, EditMessageCommand command) {
+        String bodyText = MessageBodyRules.requireValid(command.bodyText());
+        StoredMessage storedMessage = requireMessage(command.messageId());
+        requireChatAccess(actorUserId, storedMessage.chat());
+        authorizeEdit(actorUserId, storedMessage);
+        if (storedMessage.state() == MessageState.DELETED) {
+            throw new MessagingException(
+                "messaging.message_edit_deleted",
+                "Deleted messages cannot be edited.",
+                MessagingErrorType.CONFLICT
+            );
+        }
+        return toChatMessage(messagingPersistencePort.updateMessageBody(storedMessage.id(), bodyText, clockPort.now()));
+    }
+
+    @Override
+    @Transactional
+    public ChatMessage deleteMessage(UUID actorUserId, UUID messageId) {
+        StoredMessage storedMessage = requireMessage(messageId);
+        AuthorizedChat access = requireChatAccess(actorUserId, storedMessage.chat());
+        authorizeDelete(actorUserId, access, storedMessage);
+        if (storedMessage.state() == MessageState.DELETED) {
+            return toChatMessage(storedMessage);
+        }
+        return toChatMessage(messagingPersistencePort.markMessageDeleted(storedMessage.id(), clockPort.now()));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public MessageHistoryPage readMessageHistory(UUID actorUserId, ReadMessageHistoryQuery query) {
         ChatTargetRef chat = query.chat();
-        authorizeHistoryRead(actorUserId, chat);
+        requireChatAccess(actorUserId, chat);
         int limit = requireValidLimit(query.limit());
 
         List<StoredMessage> messages = query.beforeMessageId() == null
@@ -114,7 +159,7 @@ public class DefaultMessagingService implements MessagingService {
     @Transactional
     public UnreadMarker advanceReadMarker(UUID actorUserId, AdvanceReadMarkerCommand command) {
         ChatTargetRef chat = command.chat();
-        authorizeHistoryRead(actorUserId, chat);
+        requireChatAccess(actorUserId, chat);
         StoredMessage targetMessage = requireMessageInChat(
             command.lastReadMessageId(),
             chat,
@@ -131,26 +176,41 @@ public class DefaultMessagingService implements MessagingService {
         return toUnreadMarker(savedMarker);
     }
 
-    private void authorizeSend(UUID actorUserId, ChatTargetRef chat) {
-        switch (chat.type()) {
-            case ROOM -> authorizeRoom(chat, actorUserId);
-            case DIRECT -> authorizeDirectSend(actorUserId, authorizeDirectDialog(chat, actorUserId));
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatUnreadCount> listUnreadCounts(UUID actorUserId, List<ChatTargetRef> chats) {
+        Map<ChatTargetRef, Integer> unreadByChat = new LinkedHashMap<>();
+        for (ChatTargetRef chat : List.copyOf(chats)) {
+            if (unreadByChat.containsKey(chat)) {
+                continue;
+            }
+            requireChatAccess(actorUserId, chat);
+            unreadByChat.put(chat, messagingPersistencePort.countUnreadMessages(actorUserId, chat));
         }
+        return unreadByChat.entrySet().stream()
+            .map(entry -> new ChatUnreadCount(entry.getKey(), entry.getValue()))
+            .toList();
     }
 
-    private void authorizeHistoryRead(UUID actorUserId, ChatTargetRef chat) {
-        switch (chat.type()) {
+    private AuthorizedChat requireSendAccess(UUID actorUserId, ChatTargetRef chat) {
+        AuthorizedChat access = requireChatAccess(actorUserId, chat);
+        if (chat.type() == edu.artemiy.chat.messaging.api.ChatTargetType.DIRECT) {
+            authorizeDirectSend(actorUserId, access.otherUserId());
+        }
+        return access;
+    }
+
+    private AuthorizedChat requireChatAccess(UUID actorUserId, ChatTargetRef chat) {
+        return switch (chat.type()) {
             case ROOM -> authorizeRoom(chat, actorUserId);
             case DIRECT -> authorizeDirectDialog(chat, actorUserId);
-        }
+        };
     }
 
-    private void authorizeRoom(ChatTargetRef chat, UUID actorUserId) {
+    private AuthorizedChat authorizeRoom(ChatTargetRef chat, UUID actorUserId) {
         RoomMessagingAccess access = roomMessagingAccessQuery.evaluateRoomMessagingAccess(actorUserId, chat.id());
-        switch (access.status()) {
-            case ALLOWED -> {
-                return;
-            }
+        return switch (access.status()) {
+            case ALLOWED -> new AuthorizedChat(chat, access.membershipRole(), null);
             case ROOM_NOT_FOUND -> throw new MessagingException(
                 "messaging.room_not_found",
                 "Room was not found.",
@@ -166,13 +226,13 @@ public class DefaultMessagingService implements MessagingService {
                 "Banned users cannot access room messages.",
                 MessagingErrorType.FORBIDDEN
             );
-        }
+        };
     }
 
-    private DirectDialogMessagingAccess authorizeDirectDialog(ChatTargetRef chat, UUID actorUserId) {
+    private AuthorizedChat authorizeDirectDialog(ChatTargetRef chat, UUID actorUserId) {
         DirectDialogMessagingAccess access = directDialogMessagingAccessQuery.evaluateDirectDialogMessagingAccess(actorUserId, chat.id());
         return switch (access.status()) {
-            case ALLOWED -> access;
+            case ALLOWED -> new AuthorizedChat(chat, null, access.otherUserId());
             case DIRECT_DIALOG_NOT_FOUND -> throw new MessagingException(
                 "messaging.direct_dialog_not_found",
                 "Direct dialog was not found.",
@@ -186,8 +246,8 @@ public class DefaultMessagingService implements MessagingService {
         };
     }
 
-    private void authorizeDirectSend(UUID actorUserId, DirectDialogMessagingAccess access) {
-        DirectMessageEligibility eligibility = contactsService.evaluateDirectMessageEligibility(actorUserId, access.otherUserId());
+    private void authorizeDirectSend(UUID actorUserId, UUID otherUserId) {
+        DirectMessageEligibility eligibility = contactsService.evaluateDirectMessageEligibility(actorUserId, otherUserId);
         switch (eligibility) {
             case ELIGIBLE -> {
                 return;
@@ -203,6 +263,42 @@ public class DefaultMessagingService implements MessagingService {
                 MessagingErrorType.FORBIDDEN
             );
         }
+    }
+
+    private void authorizeEdit(UUID actorUserId, StoredMessage storedMessage) {
+        if (storedMessage.author().id().equals(actorUserId)) {
+            return;
+        }
+        throw new MessagingException(
+            "messaging.message_edit_forbidden",
+            "Only the message author can edit this message.",
+            MessagingErrorType.FORBIDDEN
+        );
+    }
+
+    private void authorizeDelete(UUID actorUserId, AuthorizedChat access, StoredMessage storedMessage) {
+        if (storedMessage.author().id().equals(actorUserId)) {
+            return;
+        }
+        if (storedMessage.chat().type() == edu.artemiy.chat.messaging.api.ChatTargetType.ROOM
+            && isModerator(access.roomRole())) {
+            return;
+        }
+        throw new MessagingException(
+            "messaging.message_delete_forbidden",
+            storedMessage.chat().type() == edu.artemiy.chat.messaging.api.ChatTargetType.ROOM
+                ? "Only the message author or a room moderator can delete this room message."
+                : "Only the message author can delete this direct message.",
+            MessagingErrorType.FORBIDDEN
+        );
+    }
+
+    private StoredMessage requireMessage(UUID messageId) {
+        return messagingPersistencePort.findMessage(messageId).orElseThrow(() -> new MessagingException(
+            "messaging.message_not_found",
+            "Message was not found.",
+            MessagingErrorType.NOT_FOUND
+        ));
     }
 
     private StoredMessage requireMessageInChat(UUID messageId, ChatTargetRef chat, String code, String message) {
@@ -236,19 +332,20 @@ public class DefaultMessagingService implements MessagingService {
             : Long.compareUnsigned(left.getLeastSignificantBits(), right.getLeastSignificantBits());
     }
 
+    private static boolean isModerator(MembershipRole roomRole) {
+        return roomRole == MembershipRole.OWNER || roomRole == MembershipRole.ADMIN;
+    }
+
     private static ChatMessage toChatMessage(StoredMessage storedMessage) {
         return new ChatMessage(
             storedMessage.id(),
             storedMessage.chat(),
-            new MessageAuthor(
-                storedMessage.author().id(),
-                storedMessage.author().username(),
-                storedMessage.author().displayName(),
-                storedMessage.author().deleted()
-            ),
-            storedMessage.bodyText(),
+            toMessageAuthor(storedMessage.author()),
+            visibleBodyText(storedMessage.bodyText(), storedMessage.state()),
             storedMessage.state(),
-            storedMessage.createdAt()
+            storedMessage.createdAt(),
+            storedMessage.editedAt(),
+            toReplyTarget(storedMessage.replyTo())
         );
     }
 
@@ -258,5 +355,28 @@ public class DefaultMessagingService implements MessagingService {
             storedUnreadMarker.lastReadMessageId(),
             storedUnreadMarker.updatedAt()
         );
+    }
+
+    private static MessageAuthor toMessageAuthor(edu.artemiy.chat.messaging.spi.StoredMessageAuthor author) {
+        return new MessageAuthor(author.id(), author.username(), author.displayName(), author.deleted());
+    }
+
+    private static MessageReplyTarget toReplyTarget(StoredMessageReplyTarget replyTarget) {
+        if (replyTarget == null) {
+            return null;
+        }
+        return new MessageReplyTarget(
+            replyTarget.messageId(),
+            toMessageAuthor(replyTarget.author()),
+            visibleBodyText(replyTarget.bodyText(), replyTarget.state()),
+            replyTarget.state()
+        );
+    }
+
+    private static String visibleBodyText(String bodyText, MessageState state) {
+        return state == MessageState.DELETED ? "" : bodyText;
+    }
+
+    private record AuthorizedChat(ChatTargetRef chat, MembershipRole roomRole, UUID otherUserId) {
     }
 }

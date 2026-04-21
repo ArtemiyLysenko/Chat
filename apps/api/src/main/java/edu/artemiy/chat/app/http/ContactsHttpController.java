@@ -1,6 +1,11 @@
 package edu.artemiy.chat.app.http;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
@@ -18,26 +23,59 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import edu.artemiy.chat.contacts.api.BlockedContactSummary;
+import edu.artemiy.chat.contacts.api.ContactUserSummary;
 import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.contacts.api.ContactsView;
 import edu.artemiy.chat.contacts.api.CreateFriendRequestCommand;
 import edu.artemiy.chat.contacts.api.DirectDialogSummary;
+import edu.artemiy.chat.contacts.api.FriendContactSummary;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmission;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmissionOutcome;
+import edu.artemiy.chat.contacts.api.PendingFriendRequestSummary;
+import edu.artemiy.chat.messaging.api.ChatTargetRef;
+import edu.artemiy.chat.messaging.api.ChatTargetType;
+import edu.artemiy.chat.messaging.api.MessagingService;
 
 @RestController
 @Validated
 class ContactsHttpController {
 
     private final ContactsService contactsService;
+    private final MessagingService messagingService;
 
-    ContactsHttpController(ContactsService contactsService) {
+    ContactsHttpController(ContactsService contactsService, MessagingService messagingService) {
         this.contactsService = contactsService;
+        this.messagingService = messagingService;
     }
 
     @GetMapping("/api/contacts")
-    ContactsView listContacts(Authentication authentication) {
-        return contactsService.listContacts(AuthenticatedHttpUserSupport.userId(authentication));
+    ContactsViewResponse listContacts(Authentication authentication) {
+        UUID actorUserId = AuthenticatedHttpUserSupport.userId(authentication);
+        ContactsView contactsView = contactsService.listContacts(actorUserId);
+        Map<UUID, Integer> unreadCounts = unreadCountByDialogId(
+            actorUserId,
+            contactsView.friends().stream()
+                .map(FriendContactSummary::directDialogId)
+                .filter(Objects::nonNull)
+                .map(dialogId -> new ChatTargetRef(ChatTargetType.DIRECT, dialogId))
+                .toList()
+        );
+        return new ContactsViewResponse(
+            actorUserId,
+            contactsView.friends().stream()
+                .map(friend -> new FriendContactResponse(
+                    friend.friendshipId(),
+                    friend.user(),
+                    friend.directDialogId(),
+                    friend.friendsSince(),
+                    friend.directDialogId() == null ? 0 : unreadCounts.getOrDefault(friend.directDialogId(), 0)
+                ))
+                .toList(),
+            contactsView.inboundPendingRequests(),
+            contactsView.outboundPendingRequests(),
+            contactsView.blockedUsers()
+        );
     }
 
     @PostMapping("/api/friend-requests")
@@ -107,5 +145,28 @@ class ContactsHttpController {
         private boolean hasSingleTarget() {
             return userId == null || username == null || username.isBlank();
         }
+    }
+
+    private Map<UUID, Integer> unreadCountByDialogId(UUID actorUserId, List<ChatTargetRef> chats) {
+        return messagingService.listUnreadCounts(actorUserId, chats).stream()
+            .collect(Collectors.toMap(count -> count.chat().id(), count -> count.unreadCount()));
+    }
+
+    private record ContactsViewResponse(
+        UUID viewerUserId,
+        List<FriendContactResponse> friends,
+        List<PendingFriendRequestSummary> inboundPendingRequests,
+        List<PendingFriendRequestSummary> outboundPendingRequests,
+        List<BlockedContactSummary> blockedUsers
+    ) {
+    }
+
+    private record FriendContactResponse(
+        UUID friendshipId,
+        ContactUserSummary user,
+        UUID directDialogId,
+        Instant friendsSince,
+        int unreadCount
+    ) {
     }
 }

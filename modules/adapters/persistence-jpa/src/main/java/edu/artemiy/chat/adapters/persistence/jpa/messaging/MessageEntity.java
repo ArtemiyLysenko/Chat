@@ -28,6 +28,9 @@ class MessageEntity {
     @Column(name = "author_user_id", nullable = false)
     private UUID authorUserId;
 
+    @Column(name = "parent_message_id")
+    private UUID parentMessageId;
+
     @Column(name = "body_text", nullable = false)
     private String bodyText;
 
@@ -38,6 +41,12 @@ class MessageEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "edited_at")
+    private Instant editedAt;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     protected MessageEntity() {
     }
 
@@ -46,17 +55,23 @@ class MessageEntity {
         UUID roomId,
         UUID directDialogId,
         UUID authorUserId,
+        UUID parentMessageId,
         String bodyText,
         MessageState state,
-        Instant createdAt
+        Instant createdAt,
+        Instant editedAt,
+        Instant deletedAt
     ) {
         this.id = id;
         this.roomId = roomId;
         this.directDialogId = directDialogId;
         this.authorUserId = authorUserId;
+        this.parentMessageId = parentMessageId;
         this.bodyText = bodyText;
         this.state = state;
         this.createdAt = createdAt;
+        this.editedAt = editedAt;
+        this.deletedAt = deletedAt;
     }
 
     UUID getId() {
@@ -75,6 +90,10 @@ class MessageEntity {
         return authorUserId;
     }
 
+    UUID getParentMessageId() {
+        return parentMessageId;
+    }
+
     String getBodyText() {
         return bodyText;
     }
@@ -85,5 +104,24 @@ class MessageEntity {
 
     Instant getCreatedAt() {
         return createdAt;
+    }
+
+    Instant getEditedAt() {
+        return editedAt;
+    }
+
+    Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    void edit(String nextBodyText, Instant nextEditedAt) {
+        this.bodyText = nextBodyText;
+        this.state = MessageState.EDITED;
+        this.editedAt = nextEditedAt;
+    }
+
+    void markDeleted(Instant nextDeletedAt) {
+        this.state = MessageState.DELETED;
+        this.deletedAt = nextDeletedAt;
     }
 }

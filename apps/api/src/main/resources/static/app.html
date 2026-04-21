@@ -13,7 +13,7 @@
         <header class="shell-header">
           <div class="shell-brand">
             <strong>Chat classic shell</strong>
-            <span class="subtle">Room catalog, private invites, and moderation are now live. Messaging lands in Milestone 4.</span>
+            <span class="subtle">Room catalog, moderation, HTTP-backed history, unread badges, replies, edits, and tombstones now share one classic room shell.</span>
           </div>
           <nav class="nav-links">
             <a href="/app">Rooms</a>
@@ -114,9 +114,38 @@
                     </section>
                   </div>
 
-                  <section class="message-placeholder" data-room-message-panel>
-                    <h3>Message panel</h3>
-                    <p>Chat messages, history, and realtime updates land in Milestone 4. This room detail page intentionally stops at membership and moderation for Milestone 2.</p>
+                  <section class="chat-panel" data-room-message-panel>
+                    <div class="chat-panel-header">
+                      <div>
+                        <h3>Room timeline</h3>
+                        <p>History, replies, edits, deletes, and unread clearing run over HTTP in this slice. Uploads stay disabled until Milestone 5.</p>
+                      </div>
+                      <button class="secondary" type="button" data-room-refresh-chat-button>Refresh chat</button>
+                    </div>
+                    <div class="message" data-room-chat-status></div>
+                    <div class="chat-history-controls">
+                      <button class="secondary" type="button" data-chat-load-older-button hidden>Load older messages</button>
+                    </div>
+                    <div class="chat-empty-state muted-block" data-chat-empty>No messages yet. Start the room timeline from the composer below.</div>
+                    <div class="chat-timeline" data-chat-timeline></div>
+                    <form class="chat-composer" data-chat-composer-form>
+                      <div class="chat-target-banner" data-chat-reply-target hidden>
+                        <div class="chat-target-banner-copy"></div>
+                        <button class="secondary" type="button" data-chat-cancel-reply-button>Cancel reply</button>
+                      </div>
+                      <div class="chat-target-banner" data-chat-edit-target hidden>
+                        <div class="chat-target-banner-copy"></div>
+                        <button class="secondary" type="button" data-chat-cancel-edit-button>Cancel edit</button>
+                      </div>
+                      <label>
+                        Message
+                        <textarea name="bodyText" rows="4" maxlength="3072" placeholder="Write a room message" data-chat-body-input required></textarea>
+                      </label>
+                      <div class="chat-composer-footer">
+                        <div class="subtle">Uploads and attachments stay deferred to Milestone 5.</div>
+                        <button type="submit" data-chat-submit-button>Send message</button>
+                      </div>
+                    </form>
                   </section>
                 </div>
               </section>
@@ -159,11 +188,12 @@
               </section>
 
               <section class="panel">
-                <h3>Milestone 2 notes</h3>
+                <h3>Current Notes</h3>
                 <ul class="notes">
                   <li>Private-room invitees only get a pre-join preview with the room name and owner.</li>
                   <li>Joining uses one path for both public rooms and accepted private invites.</li>
                   <li>Regular-member removal does not ban. Admin removal through member removal does.</li>
+                  <li>Realtime fan-out, live unread updates, and WebSocket delivery remain deferred to Milestone 4.3.</li>
                 </ul>
               </section>
             </aside>

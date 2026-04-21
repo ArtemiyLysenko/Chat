@@ -1,4 +1,5 @@
 import { bindAsyncForm, bindLogoutButton, clearMessage, jsonRequest, writeMessage } from "./common.js";
+import { createChatSurface } from "./chat-view.js";
 
 bindLogoutButton(document.querySelector("[data-logout-button]"));
 
@@ -24,6 +25,8 @@ const roomInviteControls = document.querySelector("[data-room-invite-controls]")
 const roomBanControls = document.querySelector("[data-room-ban-controls]");
 const roomBanList = document.querySelector("[data-room-ban-list]");
 const roomMessagePanel = document.querySelector("[data-room-message-panel]");
+const roomRefreshChatButton = document.querySelector("[data-room-refresh-chat-button]");
+const roomChatStatus = document.querySelector("[data-room-chat-status]");
 const changePasswordForm = document.querySelector("[data-password-change-form]");
 const changePasswordMessage = document.querySelector("[data-password-change-message]");
 const deleteAccountForm = document.querySelector("[data-account-delete-form]");
@@ -42,6 +45,24 @@ const formatDate = (value) =>
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+
+const roomChatSurface = createChatSurface({
+  statusElement: roomChatStatus,
+  emptyElement: roomMessagePanel.querySelector("[data-chat-empty]"),
+  timelineElement: roomMessagePanel.querySelector("[data-chat-timeline]"),
+  loadOlderButton: roomMessagePanel.querySelector("[data-chat-load-older-button]"),
+  composerForm: roomMessagePanel.querySelector("[data-chat-composer-form]"),
+  bodyInput: roomMessagePanel.querySelector("[data-chat-body-input]"),
+  submitButton: roomMessagePanel.querySelector("[data-chat-submit-button]"),
+  replyBanner: roomMessagePanel.querySelector("[data-chat-reply-target]"),
+  editBanner: roomMessagePanel.querySelector("[data-chat-edit-target]"),
+  cancelReplyButton: roomMessagePanel.querySelector("[data-chat-cancel-reply-button]"),
+  cancelEditButton: roomMessagePanel.querySelector("[data-chat-cancel-edit-button]"),
+  formatDate,
+  onConversationChanged: async () => {
+    await refreshRooms();
+  },
+});
 
 const roomUrl = (roomId) => `/app?room=${encodeURIComponent(roomId)}`;
 
@@ -109,6 +130,9 @@ const roomCard = (room) => {
     status.append(rolePill(room.viewerRole));
   }
   status.append(rolePill(`${room.memberCount} members`, "neutral"));
+  if (room.unreadCount > 0) {
+    status.append(rolePill(`${room.unreadCount} unread`, "badge"));
+  }
 
   top.append(titleWrap, status);
 
@@ -446,6 +470,7 @@ const renderSelectedRoom = () => {
     roomInviteControls.replaceChildren();
     roomBanControls.replaceChildren();
     roomBanList.replaceChildren();
+    roomMessagePanel.hidden = true;
     return;
   }
 
@@ -475,7 +500,7 @@ const renderSelectedRoom = () => {
   roomPreview.hidden = true;
   roomMembersCard.hidden = false;
   roomModerationCard.hidden = false;
-  roomMessagePanel.hidden = false;
+  roomMessagePanel.hidden = details.viewerRole == null;
   renderMembers(details);
   renderInviteControls(details);
   renderBanControls(details);
@@ -497,6 +522,7 @@ const loadSelectedRoom = async () => {
     state.selectedRoom = null;
     state.bans = [];
     renderSelectedRoom();
+    roomChatSurface.clear();
     return;
   }
 
@@ -505,10 +531,22 @@ const loadSelectedRoom = async () => {
     state.selectedRoom = details;
     state.bans = details.canInspectBans ? await jsonRequest(`/api/rooms/${state.selectedRoomId}/bans`) : [];
     renderSelectedRoom();
+    if (details.accessLevel === "FULL" && details.viewerRole) {
+      await roomChatSurface.open({
+        chatType: "ROOM",
+        chatId: details.id,
+        currentUserId: details.viewerUserId,
+        viewerRole: details.viewerRole,
+        placeholder: `Write to ${details.name}`,
+      });
+    } else {
+      roomChatSurface.clear();
+    }
   } catch (error) {
     state.selectedRoom = null;
     state.bans = [];
     renderSelectedRoom();
+    roomChatSurface.clear();
     writeMessage(roomMessage, "error", error.message);
     if (error.message.includes("not found")) {
       state.selectedRoomId = "";
@@ -517,6 +555,17 @@ const loadSelectedRoom = async () => {
     throw error;
   }
 };
+
+roomRefreshChatButton.addEventListener("click", async () => {
+  roomRefreshChatButton.disabled = true;
+  try {
+    await roomChatSurface.refresh();
+  } catch (error) {
+    writeMessage(roomChatStatus, "error", error.message);
+  } finally {
+    roomRefreshChatButton.disabled = false;
+  }
+});
 
 refreshRoomsButton.addEventListener("click", async () => {
   refreshRoomsButton.disabled = true;

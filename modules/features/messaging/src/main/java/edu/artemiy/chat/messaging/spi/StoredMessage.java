@@ -13,7 +13,9 @@ public record StoredMessage(
     StoredMessageAuthor author,
     String bodyText,
     MessageState state,
-    Instant createdAt
+    Instant createdAt,
+    Instant editedAt,
+    StoredMessageReplyTarget replyTo
 ) {
 
     public StoredMessage {

@@ -19,7 +19,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `RoomAccessLevel` | `FULL`, `INVITED_PREVIEW` | `INVITED_PREVIEW` exposes only the room name and owner for invited private-room users before join |
 | `PresenceState` | `ONLINE`, `AFK`, `OFFLINE` | Derived from active tabs |
 | `MembershipRole` | `OWNER`, `ADMIN`, `MEMBER` | Room-only role model |
-| `MessageState` | `ACTIVE`, `EDITED`, `DELETED` | Shared message lifecycle enum; Milestone 4.1 creates `ACTIVE` messages only |
+| `MessageState` | `ACTIVE`, `EDITED`, `DELETED` | Shared message lifecycle enum used by the Milestone 4.2 HTTP messaging surface |
 | `ModerationAction` | `MEMBER_REMOVED`, `MEMBER_BANNED`, `MEMBER_UNBANNED`, `ADMIN_GRANTED`, `ADMIN_REVOKED`, `MESSAGE_DELETED`, `ROOM_DELETED` | Minimum audit vocabulary |
 | `UnreadMarker` | `{ chat, lastReadMessageId, updatedAt }` | One marker per user and chat |
 | `SessionSummary` | `{ id, current, createdAt, lastSeenAt, userAgent, ipAddress }` | Returned by active-session APIs |
@@ -53,14 +53,15 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `/password-reset/request` | unauthenticated only | Static password reset request page |
 | `/password-reset/consume` | unauthenticated only | Static password reset consume page |
 | `/app` | authenticated only | Static authenticated shell page |
-| `/app/direct-dialogs/{userId}` | authenticated only | Dedicated direct-dialog placeholder page that ensures or reuses the stable direct-dialog identity for one eligible friend pair |
+| `/app/contacts` | authenticated only | Static contacts workspace for friendship management, direct-dialog entry, and HTTP-backed unread badges |
+| `/app/direct-dialogs/{userId}` | authenticated only | Dedicated direct-dialog workspace that ensures or reuses the stable direct-dialog identity for one eligible friend pair and renders the HTTP-backed chat timeline |
 | `/app/sessions` | authenticated only | Static active-session management page |
 
 ### Rooms And Moderation
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/rooms` | List rooms for the caller | Supports `scope=joined` for the sidebar list and `scope=catalog` for public room discovery |
+| `GET` | `/api/rooms` | List rooms for the caller | Supports `scope=joined` for the sidebar list and `scope=catalog` for public room discovery. Joined-room rows now include an HTTP-backed `unreadCount` for badge rendering |
 | `POST` | `/api/rooms` | Create room | Unique room name, public or private visibility |
 | `GET` | `/api/rooms/{roomId}` | Load room details and caller membership | Public rooms expose full details to authenticated, non-banned users. Private rooms expose full details only to members. Invited private-room users may load only `INVITED_PREVIEW`, which includes the room name and owner. Hidden or banned rooms must not leak information |
 | `POST` | `/api/rooms/{roomId}/join` | Join a room | This is the single membership-entry path for both public rooms and accepted private invites. It must fail if the caller is banned or lacks a private-room invite |
@@ -77,11 +78,11 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 ### Contacts And Direct Messaging
 
 Milestone 3 is complete across slices 3.1 through 3.3.
-The implemented contacts surface now includes friend-request create, accept, reject, remove-friend, block or unblock, and direct-dialog ensure-or-fetch behavior plus the dedicated placeholder page.
+Milestone 4.2 builds on that foundation with unread-badge rendering and the HTTP-backed direct-dialog workspace.
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/contacts` | List friends, pending requests, and block state | Returns `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and a populated `blockedUsers` section when the caller has active blocks |
+| `GET` | `/api/contacts` | List friends, pending requests, and block state | Returns `viewerUserId`, `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and `blockedUsers`. Each friend row includes `directDialogId` when a stable dialog exists plus an HTTP-backed `unreadCount` for that direct dialog |
 | `POST` | `/api/friend-requests` | Create friend request by username or user id | Requires exactly one of `userId` or `username`, supports optional `messageText`, auto-accepts the opposite-direction pending request when one already exists, and denies new requests while either user has blocked the other |
 | `POST` | `/api/friend-requests/{requestId}/accept` | Accept friend request | Recipient-only action that creates the friendship relation |
 | `POST` | `/api/friend-requests/{requestId}/reject` | Reject friend request | Recipient-only action that marks the request rejected and keeps no direct-dialog eligibility |
@@ -94,13 +95,13 @@ The implemented contacts surface now includes friend-request create, accept, rej
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/chats/{chatType}/{chatId}/messages` | Read a page of message history | Implemented in Milestone 4.1. Supports `before` as the oldest visible message id and `limit` with a default of `50` and a max of `100`; returns chronological `items` plus `nextBeforeMessageId` |
-| `POST` | `/api/chats/{chatType}/{chatId}/messages` | Send a new message | Implemented in Milestone 4.1. Request body is `{ bodyText }`; UTF-8 text up to 3 KB; replies remain deferred |
-| `PATCH` | `/api/messages/{messageId}` | Edit own message | Deferred beyond Milestone 4.1 |
-| `DELETE` | `/api/messages/{messageId}` | Delete message | Deferred beyond Milestone 4.1 |
-| `POST` | `/api/chats/{chatType}/{chatId}/read-markers` | Advance caller read marker | Implemented in Milestone 4.1. Request body is `{ lastReadMessageId }`; the marker moves only forward and returns the current `UnreadMarker` |
+| `GET` | `/api/chats/{chatType}/{chatId}/messages` | Read a page of message history | Implemented through Milestone 4.2. Supports `before` as the oldest visible message id and `limit` with a default of `50` and a max of `100`; returns chronological `items` plus `nextBeforeMessageId` |
+| `POST` | `/api/chats/{chatType}/{chatId}/messages` | Send a new message or reply | Implemented in Milestone 4.2. Request body is `{ bodyText, parentMessageId? }`; UTF-8 text up to 3 KB; `parentMessageId` must reference a message in the same room or direct dialog |
+| `PATCH` | `/api/messages/{messageId}` | Edit own message | Implemented in Milestone 4.2. Author-only; preserves the row and transitions message state to `EDITED` |
+| `DELETE` | `/api/messages/{messageId}` | Delete message | Implemented in Milestone 4.2. Direct-dialog deletes are author-only. Room deletes are allowed for the author or a room `OWNER` or `ADMIN`. The row is preserved and the returned message state becomes `DELETED` |
+| `POST` | `/api/chats/{chatType}/{chatId}/read-markers` | Advance caller read marker | Implemented in Milestone 4.1 and reused in Milestone 4.2. Request body is `{ lastReadMessageId }`; the marker moves only forward and is the source of truth for unread-badge clearing |
 
-Milestone 4.1 response shapes:
+Milestone 4.2 response shapes:
 
 - `POST /api/chats/{chatType}/{chatId}/messages`
 
@@ -119,7 +120,9 @@ Milestone 4.1 response shapes:
   },
   "bodyText": "Hello room",
   "state": "ACTIVE",
-  "createdAt": "2026-04-21T12:00:00Z"
+  "createdAt": "2026-04-21T12:00:00Z",
+  "editedAt": null,
+  "replyTo": null
 }
 ```
 
@@ -133,6 +136,39 @@ Milestone 4.1 response shapes:
   },
   "items": [],
   "nextBeforeMessageId": "uuid or null"
+}
+```
+
+- Edited, deleted, or reply messages reuse the same `ChatMessage` shape
+
+```json
+{
+  "id": "uuid",
+  "chat": {
+    "type": "ROOM",
+    "id": "uuid"
+  },
+  "author": {
+    "id": "uuid",
+    "username": "captain",
+    "displayName": "Captain",
+    "deleted": false
+  },
+  "bodyText": "Edited reply text",
+  "state": "EDITED",
+  "createdAt": "2026-04-21T12:00:00Z",
+  "editedAt": "2026-04-21T12:05:00Z",
+  "replyTo": {
+    "id": "uuid",
+    "author": {
+      "id": "uuid",
+      "username": "scout",
+      "displayName": "Scout",
+      "deleted": true
+    },
+    "bodyText": "Deleted message",
+    "state": "DELETED"
+  }
 }
 ```
 
@@ -162,8 +198,8 @@ Milestone 4.1 response shapes:
 
 ## WebSocket Contract
 
-The contract below remains planned Milestone 4 work.
-`/ws` is not implemented in Milestone 4.1.
+The contract below remains planned Milestone 4.3 work.
+`/ws` is not implemented in Milestone 4.2.
 
 - Path: `/ws`
 - Authentication: session cookie from the same origin login flow
@@ -211,6 +247,10 @@ The contract below remains planned Milestone 4 work.
 - Initial history load returns the newest page for the selected chat.
 - The response order within a page is chronological to keep rendering simple.
 - In Milestone 4.1, `before` is the oldest message id already shown. The next page loads older messages.
+- Milestone 4.2 keeps the same `before` semantics and renders merged pages in chronological order.
 - Room history reads require current room membership. Banned or removed users must receive authorization failure immediately.
 - Direct-dialog history reads require that the caller is one of the dialog participants. Existing history stays readable after friendship removal or block, but new sends are denied while the pair is ineligible.
+- Reply targets must stay inside the same room or direct dialog as the new message. The current 4.2 implementation allows replies to deleted messages as long as the target stays in the same chat.
+- Editing a deleted message is rejected. Deleting a message never removes the row; the API returns `state: DELETED` and the UI renders a deleted marker.
+- Tombstoned authors are rendered from the preserved `users` row through the normal message contract with `author.deleted = true`.
 - Attachment reads use the same room or direct-dialog authorization path as message history. Authorization is never based only on upload ownership.

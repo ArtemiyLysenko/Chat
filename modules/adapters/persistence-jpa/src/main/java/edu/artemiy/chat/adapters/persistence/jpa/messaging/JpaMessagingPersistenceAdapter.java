@@ -16,6 +16,7 @@ import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
 import edu.artemiy.chat.messaging.spi.StoredMessage;
 import edu.artemiy.chat.messaging.spi.StoredMessageAuthor;
+import edu.artemiy.chat.messaging.spi.StoredMessageReplyTarget;
 import edu.artemiy.chat.messaging.spi.StoredUnreadMarker;
 
 @Component
@@ -53,6 +54,36 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
         )
         """;
 
+    private static final String COUNT_ROOM_UNREAD_MESSAGES_SQL = """
+        select count(*)
+        from messages candidate
+        left join chat_unread_markers marker
+            on marker.user_id = ?
+           and marker.room_id = ?
+        left join messages last_read
+            on last_read.id = marker.last_read_message_id
+        where candidate.room_id = ?
+          and (
+              marker.last_read_message_id is null
+              or (candidate.created_at, candidate.id) > (last_read.created_at, last_read.id)
+          )
+        """;
+
+    private static final String COUNT_DIRECT_UNREAD_MESSAGES_SQL = """
+        select count(*)
+        from messages candidate
+        left join chat_unread_markers marker
+            on marker.user_id = ?
+           and marker.direct_dialog_id = ?
+        left join messages last_read
+            on last_read.id = marker.last_read_message_id
+        where candidate.direct_dialog_id = ?
+          and (
+              marker.last_read_message_id is null
+              or (candidate.created_at, candidate.id) > (last_read.created_at, last_read.id)
+          )
+        """;
+
     private final MessageJpaRepository messageJpaRepository;
     private final ChatUnreadMarkerJpaRepository chatUnreadMarkerJpaRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -74,11 +105,30 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
             message.chat().type() == ChatTargetType.ROOM ? message.chat().id() : null,
             message.chat().type() == ChatTargetType.DIRECT ? message.chat().id() : null,
             message.authorUserId(),
+            message.parentMessageId(),
             message.bodyText(),
             message.state(),
-            message.createdAt()
+            message.createdAt(),
+            null,
+            null
         ));
         return findMessage(message.id()).orElseThrow();
+    }
+
+    @Override
+    public StoredMessage updateMessageBody(UUID messageId, String bodyText, Instant editedAt) {
+        MessageEntity entity = messageJpaRepository.findById(messageId).orElseThrow();
+        entity.edit(bodyText, editedAt);
+        messageJpaRepository.saveAndFlush(entity);
+        return findMessage(messageId).orElseThrow();
+    }
+
+    @Override
+    public StoredMessage markMessageDeleted(UUID messageId, Instant deletedAt) {
+        MessageEntity entity = messageJpaRepository.findById(messageId).orElseThrow();
+        entity.markDeleted(deletedAt);
+        messageJpaRepository.saveAndFlush(entity);
+        return findMessage(messageId).orElseThrow();
     }
 
     @Override
@@ -131,6 +181,21 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
         return findUnreadMarker(userId, chat).orElseThrow();
     }
 
+    @Override
+    public int countUnreadMessages(UUID userId, ChatTargetRef chat) {
+        Integer unreadCount = switch (chat.type()) {
+            case ROOM -> jdbcTemplate.queryForObject(COUNT_ROOM_UNREAD_MESSAGES_SQL, Integer.class, userId, chat.id(), chat.id());
+            case DIRECT -> jdbcTemplate.queryForObject(
+                COUNT_DIRECT_UNREAD_MESSAGES_SQL,
+                Integer.class,
+                userId,
+                chat.id(),
+                chat.id()
+            );
+        };
+        return unreadCount == null ? 0 : unreadCount;
+    }
+
     private Optional<ChatUnreadMarkerEntity> findUnreadMarkerEntity(UUID userId, ChatTargetRef chat) {
         return switch (chat.type()) {
             case ROOM -> chatUnreadMarkerJpaRepository.findByUserIdAndRoomId(userId, chat.id());
@@ -152,7 +217,21 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
             ),
             projection.getBodyText(),
             MessageState.valueOf(projection.getState()),
-            projection.getCreatedAt()
+            projection.getCreatedAt(),
+            projection.getEditedAt(),
+            projection.getParentMessageId() == null
+                ? null
+                : new StoredMessageReplyTarget(
+                    projection.getParentMessageId(),
+                    new StoredMessageAuthor(
+                        projection.getParentAuthorUserId(),
+                        projection.getParentAuthorUsername(),
+                        projection.getParentAuthorDisplayName(),
+                        projection.getParentAuthorDeletedAt() != null
+                    ),
+                    projection.getParentBodyText(),
+                    MessageState.valueOf(projection.getParentState())
+                )
         );
     }
 

@@ -254,6 +254,7 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
                 projection.getOtherUsername(),
                 projection.getOtherDisplayName(),
                 projection.getOtherDeletedAt() != null,
+                projection.getDirectDialogId(),
                 projection.getFriendsSince()
             ))
             .toList();

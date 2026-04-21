@@ -1,7 +1,9 @@
 package edu.artemiy.chat.app.http;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -21,10 +23,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import edu.artemiy.chat.messaging.api.ChatTargetRef;
+import edu.artemiy.chat.messaging.api.ChatTargetType;
+import edu.artemiy.chat.messaging.api.MessagingService;
+import edu.artemiy.chat.rooms.api.MembershipRole;
+import edu.artemiy.chat.rooms.api.RoomAccessLevel;
 import edu.artemiy.chat.rooms.api.RoomBanRecord;
 import edu.artemiy.chat.rooms.api.RoomDetails;
+import edu.artemiy.chat.rooms.api.RoomMember;
 import edu.artemiy.chat.rooms.api.RoomScope;
 import edu.artemiy.chat.rooms.api.RoomSummary;
+import edu.artemiy.chat.rooms.api.RoomUserSummary;
 import edu.artemiy.chat.rooms.api.RoomVisibility;
 import edu.artemiy.chat.rooms.api.RoomsService;
 
@@ -33,14 +42,31 @@ import edu.artemiy.chat.rooms.api.RoomsService;
 class RoomsHttpController {
 
     private final RoomsService roomsService;
+    private final MessagingService messagingService;
 
-    RoomsHttpController(RoomsService roomsService) {
+    RoomsHttpController(RoomsService roomsService, MessagingService messagingService) {
         this.roomsService = roomsService;
+        this.messagingService = messagingService;
     }
 
     @GetMapping("/api/rooms")
-    List<RoomSummary> listRooms(@RequestParam("scope") String scope, Authentication authentication) {
-        return roomsService.listRooms(AuthenticatedHttpUserSupport.userId(authentication), RoomScope.fromHttpValue(scope));
+    List<RoomSummaryResponse> listRooms(@RequestParam("scope") String scope, Authentication authentication) {
+        UUID actorUserId = AuthenticatedHttpUserSupport.userId(authentication);
+        RoomScope roomScope = RoomScope.fromHttpValue(scope);
+        List<RoomSummary> rooms = roomsService.listRooms(actorUserId, roomScope);
+        Map<UUID, Integer> unreadCounts = roomScope == RoomScope.JOINED
+            ? unreadCountByChatId(actorUserId, rooms.stream().map(room -> new ChatTargetRef(ChatTargetType.ROOM, room.id())).toList())
+            : Map.of();
+        return rooms.stream().map(room -> new RoomSummaryResponse(
+            room.id(),
+            room.name(),
+            room.description(),
+            room.visibility(),
+            room.owner(),
+            room.viewerRole(),
+            room.memberCount(),
+            unreadCounts.getOrDefault(room.id(), 0)
+        )).toList();
     }
 
     @PostMapping("/api/rooms")
@@ -55,8 +81,29 @@ class RoomsHttpController {
     }
 
     @GetMapping("/api/rooms/{roomId}")
-    RoomDetails loadRoomDetails(@PathVariable UUID roomId, Authentication authentication) {
-        return roomsService.loadRoomDetails(AuthenticatedHttpUserSupport.userId(authentication), roomId);
+    RoomDetailsResponse loadRoomDetails(@PathVariable UUID roomId, Authentication authentication) {
+        UUID actorUserId = AuthenticatedHttpUserSupport.userId(authentication);
+        RoomDetails details = roomsService.loadRoomDetails(actorUserId, roomId);
+        return new RoomDetailsResponse(
+            details.id(),
+            details.name(),
+            details.description(),
+            details.visibility(),
+            details.accessLevel(),
+            details.owner(),
+            details.viewerRole(),
+            actorUserId,
+            details.memberCount(),
+            details.canJoin(),
+            details.canLeave(),
+            details.canInvite(),
+            details.canManageAdmins(),
+            details.canRemoveMembers(),
+            details.canInspectBans(),
+            details.canManageBans(),
+            details.canDelete(),
+            details.members()
+        );
     }
 
     @PostMapping("/api/rooms/{roomId}/join")
@@ -143,5 +190,44 @@ class RoomsHttpController {
     }
 
     private record BanUserRequest(@Size(max = 1000) String reason) {
+    }
+
+    private Map<UUID, Integer> unreadCountByChatId(UUID actorUserId, List<ChatTargetRef> chats) {
+        return messagingService.listUnreadCounts(actorUserId, chats).stream()
+            .collect(Collectors.toMap(count -> count.chat().id(), count -> count.unreadCount()));
+    }
+
+    private record RoomSummaryResponse(
+        UUID id,
+        String name,
+        String description,
+        RoomVisibility visibility,
+        RoomUserSummary owner,
+        MembershipRole viewerRole,
+        int memberCount,
+        int unreadCount
+    ) {
+    }
+
+    private record RoomDetailsResponse(
+        UUID id,
+        String name,
+        String description,
+        RoomVisibility visibility,
+        RoomAccessLevel accessLevel,
+        RoomUserSummary owner,
+        MembershipRole viewerRole,
+        UUID viewerUserId,
+        int memberCount,
+        boolean canJoin,
+        boolean canLeave,
+        boolean canInvite,
+        boolean canManageAdmins,
+        boolean canRemoveMembers,
+        boolean canInspectBans,
+        boolean canManageBans,
+        boolean canDelete,
+        List<RoomMember> members
+    ) {
     }
 }

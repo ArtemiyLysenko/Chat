@@ -31,6 +31,7 @@ import edu.artemiy.chat.messaging.api.AdvanceReadMarkerCommand;
 import edu.artemiy.chat.messaging.api.ChatMessage;
 import edu.artemiy.chat.messaging.api.ChatTargetRef;
 import edu.artemiy.chat.messaging.api.ChatTargetType;
+import edu.artemiy.chat.messaging.api.EditMessageCommand;
 import edu.artemiy.chat.messaging.api.MessageHistoryPage;
 import edu.artemiy.chat.messaging.api.MessageState;
 import edu.artemiy.chat.messaging.api.MessagingErrorType;
@@ -42,6 +43,7 @@ import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
 import edu.artemiy.chat.messaging.spi.StoredMessage;
 import edu.artemiy.chat.messaging.spi.StoredMessageAuthor;
+import edu.artemiy.chat.messaging.spi.StoredMessageReplyTarget;
 import edu.artemiy.chat.messaging.spi.StoredUnreadMarker;
 import edu.artemiy.chat.rooms.api.MembershipRole;
 import edu.artemiy.chat.rooms.api.RoomMessagingAccess;
@@ -54,6 +56,7 @@ class DefaultMessagingServiceTests {
     private static final Instant NOW = Instant.parse("2026-04-21T15:00:00Z");
     private static final UUID CAPTAIN_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID SCOUT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID TOMBSTONED_ID = UUID.fromString("33333333-3333-3333-3333-333333333334");
     private static final UUID ROOM_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID DIRECT_DIALOG_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
@@ -76,6 +79,12 @@ class DefaultMessagingServiceTests {
 
         messagingPersistencePort.addAuthor(new StoredMessageAuthor(CAPTAIN_ID, "captain", "Captain", false));
         messagingPersistencePort.addAuthor(new StoredMessageAuthor(SCOUT_ID, "scout", "Scout", false));
+        messagingPersistencePort.addAuthor(new StoredMessageAuthor(
+            TOMBSTONED_ID,
+            "deleted-33333333-3333-3333-3333-333333333334",
+            "Deleted user",
+            true
+        ));
         roomMessagingAccessQuery.allow(ROOM_ID, MembershipRole.MEMBER);
         directDialogMessagingAccessQuery.allow(DIRECT_DIALOG_ID, SCOUT_ID);
         contactsService.setEligibility(CAPTAIN_ID, SCOUT_ID, DirectMessageEligibility.ELIGIBLE);
@@ -91,7 +100,54 @@ class DefaultMessagingServiceTests {
         assertThat(sentMessage.bodyText()).isEqualTo("Ready for launch");
         assertThat(sentMessage.state()).isEqualTo(MessageState.ACTIVE);
         assertThat(sentMessage.createdAt()).isEqualTo(NOW);
+        assertThat(sentMessage.replyTo()).isNull();
         assertThat(messagingPersistencePort.messagesForChat(roomChat())).hasSize(1);
+    }
+
+    @Test
+    void sendsReplyWhenParentMessageBelongsToSameChat() {
+        StoredMessage parent = seedMessage(
+            roomChat(),
+            CAPTAIN_ID,
+            "Original",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "01000000-0000-0000-0000-000000000001"
+        );
+
+        ChatMessage sentMessage = service.sendMessage(
+            SCOUT_ID,
+            new SendMessageCommand(roomChat(), "Reply", parent.id())
+        );
+
+        assertThat(sentMessage.replyTo()).isNotNull();
+        assertThat(sentMessage.replyTo().messageId()).isEqualTo(parent.id());
+        assertThat(sentMessage.replyTo().author().username()).isEqualTo("captain");
+        assertThat(sentMessage.replyTo().bodyText()).isEqualTo("Original");
+    }
+
+    @Test
+    void deniesReplyWhenParentMessageBelongsToDifferentChat() {
+        StoredMessage crossChatParent = seedMessage(
+            directChat(),
+            CAPTAIN_ID,
+            "Elsewhere",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "02000000-0000-0000-0000-000000000001"
+        );
+
+        assertThatThrownBy(() -> service.sendMessage(
+            CAPTAIN_ID,
+            new SendMessageCommand(roomChat(), "Wrong reply", crossChatParent.id())
+        )).isInstanceOfSatisfying(MessagingException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("messaging.reply_target_invalid");
+            assertThat(exception.errorType()).isEqualTo(MessagingErrorType.BAD_REQUEST);
+        });
     }
 
     @Test
@@ -113,6 +169,54 @@ class DefaultMessagingServiceTests {
             .isInstanceOfSatisfying(MessagingException.class, exception -> {
                 assertThat(exception.code()).isEqualTo("messaging.direct_dialog_blocked");
                 assertThat(exception.errorType()).isEqualTo(MessagingErrorType.FORBIDDEN);
+            });
+    }
+
+    @Test
+    void onlyAuthorCanEditMessage() {
+        StoredMessage message = seedMessage(
+            roomChat(),
+            CAPTAIN_ID,
+            "Draft",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "03000000-0000-0000-0000-000000000001"
+        );
+
+        assertThatThrownBy(() -> service.editMessage(SCOUT_ID, new EditMessageCommand(message.id(), "Changed")))
+            .isInstanceOfSatisfying(MessagingException.class, exception -> {
+                assertThat(exception.code()).isEqualTo("messaging.message_edit_forbidden");
+                assertThat(exception.errorType()).isEqualTo(MessagingErrorType.FORBIDDEN);
+            });
+    }
+
+    @Test
+    void editingPreservesRowIdentityAndMarksMessageEdited() {
+        StoredMessage message = seedMessage(
+            roomChat(),
+            CAPTAIN_ID,
+            "Draft",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "04000000-0000-0000-0000-000000000001"
+        );
+
+        ChatMessage edited = service.editMessage(CAPTAIN_ID, new EditMessageCommand(message.id(), "Updated"));
+
+        assertThat(edited.id()).isEqualTo(message.id());
+        assertThat(edited.state()).isEqualTo(MessageState.EDITED);
+        assertThat(edited.bodyText()).isEqualTo("Updated");
+        assertThat(edited.createdAt()).isEqualTo(message.createdAt());
+        assertThat(edited.editedAt()).isEqualTo(NOW);
+        assertThat(messagingPersistencePort.findMessage(message.id()))
+            .hasValueSatisfying(stored -> {
+                assertThat(stored.state()).isEqualTo(MessageState.EDITED);
+                assertThat(stored.editedAt()).isEqualTo(NOW);
+                assertThat(stored.bodyText()).isEqualTo("Updated");
             });
     }
 
@@ -144,10 +248,10 @@ class DefaultMessagingServiceTests {
 
     @Test
     void newestPageDefaultHistoryLoadReturnsNewestMessages() {
-        seedMessage(roomChat(), CAPTAIN_ID, "first", NOW.minusSeconds(40), "10000000-0000-0000-0000-000000000001");
-        seedMessage(roomChat(), CAPTAIN_ID, "second", NOW.minusSeconds(30), "10000000-0000-0000-0000-000000000002");
-        seedMessage(roomChat(), CAPTAIN_ID, "third", NOW.minusSeconds(20), "10000000-0000-0000-0000-000000000003");
-        seedMessage(roomChat(), CAPTAIN_ID, "fourth", NOW.minusSeconds(10), "10000000-0000-0000-0000-000000000004");
+        seedMessage(roomChat(), CAPTAIN_ID, "first", MessageState.ACTIVE, NOW.minusSeconds(40), null, null, "10000000-0000-0000-0000-000000000001");
+        seedMessage(roomChat(), CAPTAIN_ID, "second", MessageState.ACTIVE, NOW.minusSeconds(30), null, null, "10000000-0000-0000-0000-000000000002");
+        seedMessage(roomChat(), CAPTAIN_ID, "third", MessageState.ACTIVE, NOW.minusSeconds(20), null, null, "10000000-0000-0000-0000-000000000003");
+        seedMessage(roomChat(), CAPTAIN_ID, "fourth", MessageState.ACTIVE, NOW.minusSeconds(10), null, null, "10000000-0000-0000-0000-000000000004");
 
         MessageHistoryPage page = service.readMessageHistory(CAPTAIN_ID, new ReadMessageHistoryQuery(roomChat(), null, 2));
 
@@ -157,10 +261,10 @@ class DefaultMessagingServiceTests {
 
     @Test
     void beforeCursorLoadsOlderMessages() {
-        seedMessage(roomChat(), CAPTAIN_ID, "first", NOW.minusSeconds(40), "20000000-0000-0000-0000-000000000001");
-        seedMessage(roomChat(), CAPTAIN_ID, "second", NOW.minusSeconds(30), "20000000-0000-0000-0000-000000000002");
-        seedMessage(roomChat(), CAPTAIN_ID, "third", NOW.minusSeconds(20), "20000000-0000-0000-0000-000000000003");
-        seedMessage(roomChat(), CAPTAIN_ID, "fourth", NOW.minusSeconds(10), "20000000-0000-0000-0000-000000000004");
+        seedMessage(roomChat(), CAPTAIN_ID, "first", MessageState.ACTIVE, NOW.minusSeconds(40), null, null, "20000000-0000-0000-0000-000000000001");
+        seedMessage(roomChat(), CAPTAIN_ID, "second", MessageState.ACTIVE, NOW.minusSeconds(30), null, null, "20000000-0000-0000-0000-000000000002");
+        seedMessage(roomChat(), CAPTAIN_ID, "third", MessageState.ACTIVE, NOW.minusSeconds(20), null, null, "20000000-0000-0000-0000-000000000003");
+        seedMessage(roomChat(), CAPTAIN_ID, "fourth", MessageState.ACTIVE, NOW.minusSeconds(10), null, null, "20000000-0000-0000-0000-000000000004");
 
         MessageHistoryPage newestPage = service.readMessageHistory(CAPTAIN_ID, new ReadMessageHistoryQuery(roomChat(), null, 2));
         MessageHistoryPage olderPage = service.readMessageHistory(
@@ -174,21 +278,27 @@ class DefaultMessagingServiceTests {
 
     @Test
     void returnsMessagesInChronologicalOrderWithinPage() {
-        seedMessage(directChat(), CAPTAIN_ID, "oldest", NOW.minusSeconds(30), "30000000-0000-0000-0000-000000000001");
-        seedMessage(directChat(), SCOUT_ID, "middle", NOW.minusSeconds(20), "30000000-0000-0000-0000-000000000002");
-        seedMessage(directChat(), CAPTAIN_ID, "newest", NOW.minusSeconds(10), "30000000-0000-0000-0000-000000000003");
+        seedMessage(directChat(), CAPTAIN_ID, "oldest", MessageState.ACTIVE, NOW.minusSeconds(30), null, null, "30000000-0000-0000-0000-000000000001");
+        seedMessage(directChat(), SCOUT_ID, "middle", MessageState.EDITED, NOW.minusSeconds(20), NOW.minusSeconds(5), null, "30000000-0000-0000-0000-000000000002");
+        seedMessage(directChat(), CAPTAIN_ID, "newest", MessageState.DELETED, NOW.minusSeconds(10), null, null, "30000000-0000-0000-0000-000000000003");
 
         MessageHistoryPage page = service.readMessageHistory(CAPTAIN_ID, new ReadMessageHistoryQuery(directChat(), null, 3));
 
-        assertThat(page.items()).extracting(ChatMessage::bodyText).containsExactly("oldest", "middle", "newest");
+        assertThat(page.items()).extracting(ChatMessage::createdAt).isSorted();
+        assertThat(page.items()).extracting(ChatMessage::state).containsExactly(
+            MessageState.ACTIVE,
+            MessageState.EDITED,
+            MessageState.DELETED
+        );
+        assertThat(page.items().get(2).bodyText()).isEmpty();
     }
 
     @Test
     void sameTimestampPagingUsesPostgresUuidOrdering() {
         Instant sharedTimestamp = NOW.minusSeconds(15);
-        seedMessage(roomChat(), CAPTAIN_ID, "six", sharedTimestamp, "60000000-0000-0000-0000-000000000001");
-        StoredMessage seven = seedMessage(roomChat(), CAPTAIN_ID, "seven", sharedTimestamp, "70000000-0000-0000-0000-000000000001");
-        seedMessage(roomChat(), CAPTAIN_ID, "eight", sharedTimestamp, "80000000-0000-0000-0000-000000000001");
+        seedMessage(roomChat(), CAPTAIN_ID, "six", MessageState.ACTIVE, sharedTimestamp, null, null, "60000000-0000-0000-0000-000000000001");
+        StoredMessage seven = seedMessage(roomChat(), CAPTAIN_ID, "seven", MessageState.ACTIVE, sharedTimestamp, null, null, "70000000-0000-0000-0000-000000000001");
+        seedMessage(roomChat(), CAPTAIN_ID, "eight", MessageState.ACTIVE, sharedTimestamp, null, null, "80000000-0000-0000-0000-000000000001");
 
         MessageHistoryPage newestPage = service.readMessageHistory(CAPTAIN_ID, new ReadMessageHistoryQuery(roomChat(), null, 2));
         MessageHistoryPage olderPage = service.readMessageHistory(
@@ -203,9 +313,9 @@ class DefaultMessagingServiceTests {
 
     @Test
     void readMarkerAdvancesOnlyForward() {
-        StoredMessage first = seedMessage(roomChat(), CAPTAIN_ID, "first", NOW.minusSeconds(30), "40000000-0000-0000-0000-000000000001");
-        StoredMessage second = seedMessage(roomChat(), CAPTAIN_ID, "second", NOW.minusSeconds(20), "40000000-0000-0000-0000-000000000002");
-        StoredMessage third = seedMessage(roomChat(), CAPTAIN_ID, "third", NOW.minusSeconds(10), "40000000-0000-0000-0000-000000000003");
+        StoredMessage first = seedMessage(roomChat(), CAPTAIN_ID, "first", MessageState.ACTIVE, NOW.minusSeconds(30), null, null, "40000000-0000-0000-0000-000000000001");
+        StoredMessage second = seedMessage(roomChat(), CAPTAIN_ID, "second", MessageState.ACTIVE, NOW.minusSeconds(20), null, null, "40000000-0000-0000-0000-000000000002");
+        StoredMessage third = seedMessage(roomChat(), CAPTAIN_ID, "third", MessageState.ACTIVE, NOW.minusSeconds(10), null, null, "40000000-0000-0000-0000-000000000003");
         messagingPersistencePort.saveUnreadMarker(CAPTAIN_ID, roomChat(), second.id(), NOW.minusSeconds(5));
 
         UnreadMarker unchanged = service.advanceReadMarker(
@@ -225,7 +335,7 @@ class DefaultMessagingServiceTests {
 
     @Test
     void directDialogHistoryRemainsReadableAfterSendEligibilityLoss() {
-        seedMessage(directChat(), CAPTAIN_ID, "history", NOW.minusSeconds(10), "50000000-0000-0000-0000-000000000001");
+        seedMessage(directChat(), CAPTAIN_ID, "history", MessageState.ACTIVE, NOW.minusSeconds(10), null, null, "50000000-0000-0000-0000-000000000001");
         contactsService.setEligibility(CAPTAIN_ID, SCOUT_ID, DirectMessageEligibility.NOT_FRIENDS);
 
         MessageHistoryPage page = service.readMessageHistory(CAPTAIN_ID, new ReadMessageHistoryQuery(directChat(), null, 10));
@@ -233,14 +343,109 @@ class DefaultMessagingServiceTests {
         assertThat(page.items()).extracting(ChatMessage::bodyText).containsExactly("history");
     }
 
-    private StoredMessage seedMessage(ChatTargetRef chat, UUID authorUserId, String bodyText, Instant createdAt, String messageId) {
+    @Test
+    void directDialogDeleteIsAuthorOnly() {
+        StoredMessage message = seedMessage(
+            directChat(),
+            SCOUT_ID,
+            "Hands off",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "51000000-0000-0000-0000-000000000001"
+        );
+
+        assertThatThrownBy(() -> service.deleteMessage(CAPTAIN_ID, message.id()))
+            .isInstanceOfSatisfying(MessagingException.class, exception -> {
+                assertThat(exception.code()).isEqualTo("messaging.message_delete_forbidden");
+                assertThat(exception.errorType()).isEqualTo(MessagingErrorType.FORBIDDEN);
+            });
+    }
+
+    @Test
+    void roomDeleteAllowsModeratorForOtherAuthors() {
+        roomMessagingAccessQuery.allow(ROOM_ID, MembershipRole.ADMIN);
+        StoredMessage message = seedMessage(
+            roomChat(),
+            SCOUT_ID,
+            "Please remove",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "52000000-0000-0000-0000-000000000001"
+        );
+
+        ChatMessage deleted = service.deleteMessage(CAPTAIN_ID, message.id());
+
+        assertThat(deleted.state()).isEqualTo(MessageState.DELETED);
+        assertThat(deleted.bodyText()).isEmpty();
+    }
+
+    @Test
+    void deletingMessageMarksItDeletedInsteadOfRemovingIt() {
+        StoredMessage message = seedMessage(
+            roomChat(),
+            CAPTAIN_ID,
+            "To delete",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "53000000-0000-0000-0000-000000000001"
+        );
+
+        ChatMessage deleted = service.deleteMessage(CAPTAIN_ID, message.id());
+
+        assertThat(deleted.id()).isEqualTo(message.id());
+        assertThat(deleted.state()).isEqualTo(MessageState.DELETED);
+        assertThat(deleted.bodyText()).isEmpty();
+        assertThat(messagingPersistencePort.findMessage(message.id()))
+            .hasValueSatisfying(stored -> assertThat(stored.state()).isEqualTo(MessageState.DELETED));
+    }
+
+    @Test
+    void historyRenderingPreservesTombstonedAuthorIdentity() {
+        seedMessage(
+            roomChat(),
+            TOMBSTONED_ID,
+            "Legacy",
+            MessageState.ACTIVE,
+            NOW.minusSeconds(30),
+            null,
+            null,
+            "54000000-0000-0000-0000-000000000001"
+        );
+
+        MessageHistoryPage page = service.readMessageHistory(CAPTAIN_ID, new ReadMessageHistoryQuery(roomChat(), null, 10));
+
+        assertThat(page.items()).singleElement().satisfies(message -> {
+            assertThat(message.author().displayName()).isEqualTo("Deleted user");
+            assertThat(message.author().username()).startsWith("deleted-");
+            assertThat(message.author().deleted()).isTrue();
+        });
+    }
+
+    private StoredMessage seedMessage(
+        ChatTargetRef chat,
+        UUID authorUserId,
+        String bodyText,
+        MessageState state,
+        Instant createdAt,
+        Instant editedAt,
+        StoredMessageReplyTarget replyTarget,
+        String messageId
+    ) {
         return messagingPersistencePort.seedMessage(new StoredMessage(
             UUID.fromString(messageId),
             chat,
             messagingPersistencePort.author(authorUserId),
             bodyText,
-            MessageState.ACTIVE,
-            createdAt
+            state,
+            createdAt,
+            editedAt,
+            replyTarget
         ));
     }
 
@@ -381,16 +586,60 @@ class DefaultMessagingServiceTests {
 
         @Override
         public StoredMessage createMessage(NewMessageRecord message) {
+            StoredMessage parentMessage = message.parentMessageId() == null ? null : messages.get(message.parentMessageId());
             StoredMessage storedMessage = new StoredMessage(
                 message.id(),
                 message.chat(),
                 author(message.authorUserId()),
                 message.bodyText(),
                 message.state(),
-                message.createdAt()
+                message.createdAt(),
+                null,
+                parentMessage == null
+                    ? null
+                    : new StoredMessageReplyTarget(
+                        parentMessage.id(),
+                        parentMessage.author(),
+                        parentMessage.bodyText(),
+                        parentMessage.state()
+                    )
             );
             messages.put(storedMessage.id(), storedMessage);
             return storedMessage;
+        }
+
+        @Override
+        public StoredMessage updateMessageBody(UUID messageId, String bodyText, Instant editedAt) {
+            StoredMessage existing = Optional.ofNullable(messages.get(messageId)).orElseThrow();
+            StoredMessage updated = new StoredMessage(
+                existing.id(),
+                existing.chat(),
+                existing.author(),
+                bodyText,
+                MessageState.EDITED,
+                existing.createdAt(),
+                editedAt,
+                existing.replyTo()
+            );
+            messages.put(messageId, updated);
+            return updated;
+        }
+
+        @Override
+        public StoredMessage markMessageDeleted(UUID messageId, Instant deletedAt) {
+            StoredMessage existing = Optional.ofNullable(messages.get(messageId)).orElseThrow();
+            StoredMessage deleted = new StoredMessage(
+                existing.id(),
+                existing.chat(),
+                existing.author(),
+                existing.bodyText(),
+                MessageState.DELETED,
+                existing.createdAt(),
+                existing.editedAt(),
+                existing.replyTo()
+            );
+            messages.put(messageId, deleted);
+            return deleted;
         }
 
         @Override
@@ -438,6 +687,21 @@ class DefaultMessagingServiceTests {
             );
             unreadMarkers.put(unreadKey, storedUnreadMarker);
             return storedUnreadMarker;
+        }
+
+        @Override
+        public int countUnreadMessages(UUID userId, ChatTargetRef chat) {
+            StoredUnreadMarker marker = unreadMarkers.get(unreadKey(userId, chat));
+            if (marker == null) {
+                return messagesForChat(chat).size();
+            }
+            StoredMessage lastReadMessage = messages.get(marker.lastReadMessageId());
+            if (lastReadMessage == null) {
+                return messagesForChat(chat).size();
+            }
+            return Math.toIntExact(messagesForChat(chat).stream()
+                .filter(message -> compareMessagesAscending(message, lastReadMessage) > 0)
+                .count());
         }
 
         void addAuthor(StoredMessageAuthor author) {

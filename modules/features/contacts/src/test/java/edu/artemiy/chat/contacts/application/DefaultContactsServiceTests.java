@@ -632,6 +632,7 @@ class DefaultContactsServiceTests {
                         otherUser.username(),
                         otherUser.displayName(),
                         otherUser.deleted(),
+                        findDirectDialog(friendship.userLowId(), friendship.userHighId()).map(StoredDirectDialog::id).orElse(null),
                         friendship.createdAt()
                     );
                 })

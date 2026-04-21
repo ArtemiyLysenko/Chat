@@ -13,7 +13,7 @@
         <header class="shell-header">
           <div class="shell-brand">
             <strong>Chat contacts</strong>
-            <span class="subtle">Milestone 3.3 completes stable direct-dialog identity and preserves messaging work for Milestone 4.</span>
+            <span class="subtle">Friendship, stable direct-dialog identity, unread badges, and HTTP-driven direct chat entry now share one contacts workspace.</span>
           </div>
           <nav class="nav-links">
             <a href="/app">Rooms</a>
@@ -54,12 +54,13 @@
               </section>
 
               <section class="panel">
-                <h3>Milestone 3.3 notes</h3>
+                <h3>Milestone 4.2 notes</h3>
                 <ul class="notes">
                   <li>Reverse-direction requests auto-accept the existing pending request.</li>
-                  <li>Open dialog placeholder creates or reuses one stable direct-dialog identity per ordered user pair.</li>
-                  <li>Blocking or removing a friend preserves an existing direct-dialog identity, but new messaging stays ineligible.</li>
-                  <li>Milestone 4 will add actual direct-message sending and history.</li>
+                  <li>Open dialog reuses one stable direct-dialog identity per ordered user pair.</li>
+                  <li>Unread badges come from HTTP-backed read markers and clear when the chat view advances the marker.</li>
+                  <li>Blocking or removing a friend preserves existing dialog history, but new direct messaging stays ineligible.</li>
+                  <li>Realtime `/ws` fan-out remains deferred to Milestone 4.3.</li>
                 </ul>
               </section>
             </aside>
@@ -67,7 +68,7 @@
             <div class="stack">
               <section class="panel">
                 <h2>Accepted friends</h2>
-                <p>These relationships are the only pairs currently eligible to ensure or reopen a stable direct-dialog placeholder when no block exists.</p>
+                <p>These relationships are the only pairs currently eligible to open or reopen a direct-dialog timeline when no block exists.</p>
                 <div class="message" data-contacts-message></div>
                 <div class="room-list" data-friends-list></div>
               </section>

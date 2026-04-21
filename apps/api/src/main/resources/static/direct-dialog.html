@@ -12,8 +12,8 @@
       <section class="shell">
         <header class="shell-header">
           <div class="shell-brand">
-            <strong>Direct dialog placeholder</strong>
-            <span class="subtle">Milestone 4.1 now provides the backend messaging foundation, but this page intentionally remains a placeholder until the real timeline UI lands.</span>
+            <strong>Direct dialog workspace</strong>
+            <span class="subtle">Stable dialog identity from Milestone 3 now drives a real HTTP timeline, reply flow, edit or delete controls, and unread badge clearing.</span>
           </div>
           <nav class="nav-links">
             <a href="/app">Rooms</a>
@@ -23,19 +23,69 @@
           </nav>
         </header>
         <div class="shell-body">
-          <div class="stack">
-            <section class="panel">
-              <div class="split">
-                <div>
-                  <h2 data-dialog-title>Loading direct dialog...</h2>
-                  <p data-dialog-subtitle>This page ensures or reuses the stable direct-dialog identity for one eligible friend pair.</p>
+          <div class="chat-layout">
+            <aside class="stack">
+              <section class="panel">
+                <div class="split">
+                  <div>
+                    <h3>Friend dialogs</h3>
+                    <p>Accepted friends remain the entry point for direct-dialog navigation in this slice.</p>
+                  </div>
+                  <button class="secondary" type="button" data-direct-refresh-button>Refresh</button>
                 </div>
-                <a class="button secondary" href="/app/contacts">Back to contacts</a>
-              </div>
-              <div class="message" data-dialog-message></div>
-            </section>
+                <div class="room-list" data-direct-friends-list></div>
+              </section>
 
-            <div class="detail-columns">
+              <section class="panel">
+                <h3>Milestone 4.2 notes</h3>
+                <ul class="notes">
+                  <li>Replies, edits, deletes, and unread badges are HTTP-driven only in this slice.</li>
+                  <li>Uploads remain disabled until Milestone 5.</li>
+                  <li>Realtime `/ws` fan-out stays deferred to Milestone 4.3.</li>
+                </ul>
+              </section>
+            </aside>
+
+            <div class="stack">
+              <section class="chat-panel">
+                <div class="chat-panel-header">
+                  <div>
+                    <h2 data-dialog-title>Loading direct dialog...</h2>
+                    <p data-dialog-subtitle>Preparing stable identity and history.</p>
+                  </div>
+                  <div class="actions">
+                    <a class="button secondary" href="/app/contacts">Back to contacts</a>
+                    <button class="secondary" type="button" data-direct-refresh-chat-button>Refresh chat</button>
+                  </div>
+                </div>
+                <div class="message" data-dialog-message></div>
+                <div class="chat-history-controls">
+                  <button class="secondary" type="button" data-chat-load-older-button hidden>Load older messages</button>
+                </div>
+                <div class="chat-empty-state muted-block" data-chat-empty>No messages yet. Start the dialog from the composer below.</div>
+                <div class="chat-timeline" data-chat-timeline></div>
+                <form class="chat-composer" data-chat-composer-form>
+                  <div class="chat-target-banner" data-chat-reply-target hidden>
+                    <div class="chat-target-banner-copy"></div>
+                    <button class="secondary" type="button" data-chat-cancel-reply-button>Cancel reply</button>
+                  </div>
+                  <div class="chat-target-banner" data-chat-edit-target hidden>
+                    <div class="chat-target-banner-copy"></div>
+                    <button class="secondary" type="button" data-chat-cancel-edit-button>Cancel edit</button>
+                  </div>
+                  <label>
+                    Message
+                    <textarea name="bodyText" rows="4" maxlength="3072" placeholder="Write a direct message" data-chat-body-input required></textarea>
+                  </label>
+                  <div class="chat-composer-footer">
+                    <div class="subtle">Uploads and attachments stay deferred to Milestone 5.</div>
+                    <button type="submit" data-chat-submit-button>Send message</button>
+                  </div>
+                </form>
+              </section>
+            </div>
+
+            <aside class="stack">
               <section class="detail-card">
                 <h3>Participant</h3>
                 <div class="member-list" data-dialog-participant>
@@ -49,18 +99,14 @@
                   <div class="muted-block">Loading dialog identity...</div>
                 </div>
               </section>
-            </div>
 
-            <section class="message-placeholder">
-              <h3>Messaging deferred</h3>
-              <p>
-                The backend now supports HTTP direct-message send, history reads, and unread-marker updates.
-                This page still stops at the stable dialog identity and does not render the real timeline, composer, or realtime updates yet.
-              </p>
-              <div class="muted-block" data-dialog-placeholder>
-                No message timeline is rendered on this page yet.
-              </div>
-            </section>
+              <section class="detail-card">
+                <h3>Transport note</h3>
+                <div class="muted-block" data-dialog-placeholder>
+                  This screen uses HTTP history reads and message mutations only. Live push waits for Milestone 4.3.
+                </div>
+              </section>
+            </aside>
           </div>
         </div>
       </section>

@@ -11,6 +11,7 @@ public record NewMessageRecord(
     UUID id,
     ChatTargetRef chat,
     UUID authorUserId,
+    UUID parentMessageId,
     String bodyText,
     MessageState state,
     Instant createdAt

@@ -10,7 +10,9 @@ public record ChatMessage(
     MessageAuthor author,
     String bodyText,
     MessageState state,
-    Instant createdAt
+    Instant createdAt,
+    Instant editedAt,
+    MessageReplyTarget replyTo
 ) {
 
     public ChatMessage {

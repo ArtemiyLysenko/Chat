@@ -26,6 +26,7 @@ interface FriendshipJpaRepository extends JpaRepository<FriendshipEntity, UUID> 
                 u.username as otherUsername,
                 u.display_name as otherDisplayName,
                 u.deleted_at as otherDeletedAt,
+                d.id as directDialogId,
                 f.created_at as friendsSince
             from friendships f
             join users u
@@ -33,6 +34,9 @@ interface FriendshipJpaRepository extends JpaRepository<FriendshipEntity, UUID> 
                     when f.user_low_id = :userId then f.user_high_id
                     else f.user_low_id
                 end
+            left join direct_dialogs d
+                on d.user_low_id = f.user_low_id
+               and d.user_high_id = f.user_high_id
             where f.user_low_id = :userId
                or f.user_high_id = :userId
             order by lower(u.username), f.created_at, f.id
@@ -52,6 +56,8 @@ interface FriendshipJpaRepository extends JpaRepository<FriendshipEntity, UUID> 
         String getOtherDisplayName();
 
         Instant getOtherDeletedAt();
+
+        UUID getDirectDialogId();
 
         Instant getFriendsSince();
     }

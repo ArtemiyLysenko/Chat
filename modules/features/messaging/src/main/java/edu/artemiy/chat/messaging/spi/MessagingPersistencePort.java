@@ -11,6 +11,10 @@ public interface MessagingPersistencePort {
 
     StoredMessage createMessage(NewMessageRecord message);
 
+    StoredMessage updateMessageBody(UUID messageId, String bodyText, Instant editedAt);
+
+    StoredMessage markMessageDeleted(UUID messageId, Instant deletedAt);
+
     Optional<StoredMessage> findMessage(UUID messageId);
 
     List<StoredMessage> listLatestMessages(ChatTargetRef chat, int limit);
@@ -20,4 +24,6 @@ public interface MessagingPersistencePort {
     Optional<StoredUnreadMarker> findUnreadMarker(UUID userId, ChatTargetRef chat);
 
     StoredUnreadMarker saveUnreadMarker(UUID userId, ChatTargetRef chat, UUID lastReadMessageId, Instant updatedAt);
+
+    int countUnreadMessages(UUID userId, ChatTargetRef chat);
 }

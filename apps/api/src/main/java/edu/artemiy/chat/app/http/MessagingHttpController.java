@@ -11,7 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,6 +24,7 @@ import edu.artemiy.chat.messaging.api.AdvanceReadMarkerCommand;
 import edu.artemiy.chat.messaging.api.ChatMessage;
 import edu.artemiy.chat.messaging.api.ChatTargetRef;
 import edu.artemiy.chat.messaging.api.ChatTargetType;
+import edu.artemiy.chat.messaging.api.EditMessageCommand;
 import edu.artemiy.chat.messaging.api.MessageHistoryPage;
 import edu.artemiy.chat.messaging.api.MessagingService;
 import edu.artemiy.chat.messaging.api.ReadMessageHistoryQuery;
@@ -61,9 +64,26 @@ class MessagingHttpController {
     ) {
         ChatMessage createdMessage = messagingService.sendMessage(
             AuthenticatedHttpUserSupport.userId(authentication),
-            new SendMessageCommand(chatTarget(chatType, chatId), request.bodyText())
+            new SendMessageCommand(chatTarget(chatType, chatId), request.bodyText(), request.parentMessageId())
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(createdMessage);
+    }
+
+    @PatchMapping("/api/messages/{messageId}")
+    ChatMessage editMessage(
+        @PathVariable UUID messageId,
+        @Valid @RequestBody EditMessageRequest request,
+        Authentication authentication
+    ) {
+        return messagingService.editMessage(
+            AuthenticatedHttpUserSupport.userId(authentication),
+            new EditMessageCommand(messageId, request.bodyText())
+        );
+    }
+
+    @DeleteMapping("/api/messages/{messageId}")
+    ChatMessage deleteMessage(@PathVariable UUID messageId, Authentication authentication) {
+        return messagingService.deleteMessage(AuthenticatedHttpUserSupport.userId(authentication), messageId);
     }
 
     @PostMapping("/api/chats/{chatType}/{chatId}/read-markers")
@@ -83,7 +103,10 @@ class MessagingHttpController {
         return new ChatTargetRef(ChatTargetType.fromHttpValue(chatType), chatId);
     }
 
-    private record SendMessageRequest(@NotNull String bodyText) {
+    private record SendMessageRequest(@NotNull String bodyText, UUID parentMessageId) {
+    }
+
+    private record EditMessageRequest(@NotNull String bodyText) {
     }
 
     private record AdvanceReadMarkerRequest(@NotNull UUID lastReadMessageId) {

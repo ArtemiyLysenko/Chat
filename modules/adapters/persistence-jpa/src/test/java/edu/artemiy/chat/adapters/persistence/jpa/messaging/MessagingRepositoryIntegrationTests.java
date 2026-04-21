@@ -33,6 +33,7 @@ import edu.artemiy.chat.messaging.api.ChatTargetType;
 import edu.artemiy.chat.messaging.api.MessageState;
 import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
+import edu.artemiy.chat.messaging.spi.StoredMessage;
 import edu.artemiy.chat.rooms.api.MembershipRole;
 import edu.artemiy.chat.rooms.api.RoomVisibility;
 import edu.artemiy.chat.rooms.spi.NewRoomMembershipRecord;
@@ -120,19 +121,100 @@ class MessagingRepositoryIntegrationTests extends PostgresIntegrationSupport {
     }
 
     @Test
+    void persistsReplyParentLinkage() {
+        UUID authorId = createUser("captain@example.com", "captain");
+        UUID roomId = createRoom(authorId, "Bridge");
+        ChatTargetRef roomChat = new ChatTargetRef(ChatTargetType.ROOM, roomId);
+        StoredMessage parent = createMessage(roomChat, authorId, null, "Parent", NOW.minusSeconds(20), "61000000-0000-0000-0000-000000000001");
+
+        StoredMessage reply = createMessage(roomChat, authorId, parent.id(), "Reply", NOW.minusSeconds(10), "61000000-0000-0000-0000-000000000002");
+
+        assertThat(reply.replyTo()).isNotNull();
+        assertThat(reply.replyTo().messageId()).isEqualTo(parent.id());
+        assertThat(reply.replyTo().bodyText()).isEqualTo("Parent");
+        assertThat(jdbcTemplate.queryForObject(
+            "select parent_message_id from messages where id = ?",
+            UUID.class,
+            reply.id()
+        )).isEqualTo(parent.id());
+    }
+
+    @Test
+    void persistsEditedState() {
+        UUID authorId = createUser("captain@example.com", "captain");
+        UUID roomId = createRoom(authorId, "Bridge");
+        ChatTargetRef roomChat = new ChatTargetRef(ChatTargetType.ROOM, roomId);
+        StoredMessage original = createMessage(roomChat, authorId, null, "Draft", NOW.minusSeconds(20), "62000000-0000-0000-0000-000000000001");
+
+        StoredMessage edited = messagingPersistencePort.updateMessageBody(original.id(), "Updated", NOW);
+
+        assertThat(edited.state()).isEqualTo(MessageState.EDITED);
+        assertThat(edited.editedAt()).isEqualTo(NOW);
+        assertThat(edited.bodyText()).isEqualTo("Updated");
+        assertThat(jdbcTemplate.queryForMap(
+            "select state, body_text, edited_at from messages where id = ?",
+            original.id()
+        )).containsEntry("state", "EDITED")
+            .containsEntry("body_text", "Updated")
+            .containsEntry("edited_at", java.sql.Timestamp.from(NOW));
+    }
+
+    @Test
+    void persistsDeletedState() {
+        UUID authorId = createUser("captain@example.com", "captain");
+        UUID roomId = createRoom(authorId, "Bridge");
+        ChatTargetRef roomChat = new ChatTargetRef(ChatTargetType.ROOM, roomId);
+        StoredMessage original = createMessage(roomChat, authorId, null, "Delete me", NOW.minusSeconds(20), "63000000-0000-0000-0000-000000000001");
+
+        StoredMessage deleted = messagingPersistencePort.markMessageDeleted(original.id(), NOW);
+
+        assertThat(deleted.state()).isEqualTo(MessageState.DELETED);
+        assertThat(deleted.bodyText()).isEqualTo("Delete me");
+        assertThat(jdbcTemplate.queryForMap(
+            "select state, deleted_at from messages where id = ?",
+            original.id()
+        )).containsEntry("state", "DELETED")
+            .containsEntry("deleted_at", java.sql.Timestamp.from(NOW));
+    }
+
+    @Test
+    void loadsHistoryInNewestFirstOrderWithEditedDeletedAndReplyMessages() {
+        UUID authorId = createUser("captain@example.com", "captain");
+        UUID secondAuthorId = createUser("scout@example.com", "scout");
+        UUID roomId = createRoom(authorId, "Bridge");
+        ChatTargetRef roomChat = new ChatTargetRef(ChatTargetType.ROOM, roomId);
+
+        StoredMessage oldest = createMessage(roomChat, authorId, null, "Oldest", NOW.minusSeconds(40), "64000000-0000-0000-0000-000000000001");
+        StoredMessage edited = createMessage(roomChat, secondAuthorId, null, "Edit me", NOW.minusSeconds(30), "64000000-0000-0000-0000-000000000002");
+        messagingPersistencePort.updateMessageBody(edited.id(), "Edited", NOW.minusSeconds(15));
+        StoredMessage deleted = createMessage(roomChat, authorId, null, "Delete me", NOW.minusSeconds(20), "64000000-0000-0000-0000-000000000003");
+        messagingPersistencePort.markMessageDeleted(deleted.id(), NOW.minusSeconds(10));
+        StoredMessage reply = createMessage(roomChat, secondAuthorId, oldest.id(), "Reply", NOW.minusSeconds(5), "64000000-0000-0000-0000-000000000004");
+
+        var latest = messagingPersistencePort.listLatestMessages(roomChat, 3);
+        var older = messagingPersistencePort.listMessagesBefore(roomChat, latest.getLast().createdAt(), latest.getLast().id(), 3);
+
+        assertThat(latest).extracting(StoredMessage::id).containsExactly(reply.id(), deleted.id(), edited.id());
+        assertThat(latest).extracting(StoredMessage::state).containsExactly(MessageState.ACTIVE, MessageState.DELETED, MessageState.EDITED);
+        assertThat(latest.getFirst().replyTo()).isNotNull();
+        assertThat(latest.getFirst().replyTo().messageId()).isEqualTo(oldest.id());
+        assertThat(older).singleElement().satisfies(message -> assertThat(message.id()).isEqualTo(oldest.id()));
+    }
+
+    @Test
     void loadsRoomHistoryInNewestFirstOrderAndHasRoomHistoryIndex() {
         UUID authorId = createUser("captain@example.com", "captain");
         UUID roomId = createRoom(authorId, "Bridge");
         ChatTargetRef roomChat = new ChatTargetRef(ChatTargetType.ROOM, roomId);
 
-        createMessage(roomChat, authorId, "first", NOW.minusSeconds(40), "61000000-0000-0000-0000-000000000001");
-        createMessage(roomChat, authorId, "second", NOW.minusSeconds(30), "61000000-0000-0000-0000-000000000002");
-        createMessage(roomChat, authorId, "third", NOW.minusSeconds(20), "61000000-0000-0000-0000-000000000003");
-        createMessage(roomChat, authorId, "fourth", NOW.minusSeconds(10), "61000000-0000-0000-0000-000000000004");
+        createMessage(roomChat, authorId, null, "first", NOW.minusSeconds(40), "65000000-0000-0000-0000-000000000001");
+        createMessage(roomChat, authorId, null, "second", NOW.minusSeconds(30), "65000000-0000-0000-0000-000000000002");
+        createMessage(roomChat, authorId, null, "third", NOW.minusSeconds(20), "65000000-0000-0000-0000-000000000003");
+        createMessage(roomChat, authorId, null, "fourth", NOW.minusSeconds(10), "65000000-0000-0000-0000-000000000004");
 
         var messages = messagingPersistencePort.listLatestMessages(roomChat, 3);
 
-        assertThat(messages).extracting(message -> message.bodyText()).containsExactly("fourth", "third", "second");
+        assertThat(messages).extracting(StoredMessage::bodyText).containsExactly("fourth", "third", "second");
         assertThat(indexNames("messages")).contains("idx_messages_room_history");
         assertThat(explainUsingIndex(
             """
@@ -153,14 +235,14 @@ class MessagingRepositoryIntegrationTests extends PostgresIntegrationSupport {
         UUID directDialogId = createDirectDialog(captainId, scoutId);
         ChatTargetRef directChat = new ChatTargetRef(ChatTargetType.DIRECT, directDialogId);
 
-        createMessage(directChat, captainId, "first", NOW.minusSeconds(40), "62000000-0000-0000-0000-000000000001");
-        createMessage(directChat, scoutId, "second", NOW.minusSeconds(30), "62000000-0000-0000-0000-000000000002");
-        createMessage(directChat, captainId, "third", NOW.minusSeconds(20), "62000000-0000-0000-0000-000000000003");
-        createMessage(directChat, scoutId, "fourth", NOW.minusSeconds(10), "62000000-0000-0000-0000-000000000004");
+        createMessage(directChat, captainId, null, "first", NOW.minusSeconds(40), "66000000-0000-0000-0000-000000000001");
+        createMessage(directChat, scoutId, null, "second", NOW.minusSeconds(30), "66000000-0000-0000-0000-000000000002");
+        createMessage(directChat, captainId, null, "third", NOW.minusSeconds(20), "66000000-0000-0000-0000-000000000003");
+        createMessage(directChat, scoutId, null, "fourth", NOW.minusSeconds(10), "66000000-0000-0000-0000-000000000004");
 
         var messages = messagingPersistencePort.listLatestMessages(directChat, 3);
 
-        assertThat(messages).extracting(message -> message.bodyText()).containsExactly("fourth", "third", "second");
+        assertThat(messages).extracting(StoredMessage::bodyText).containsExactly("fourth", "third", "second");
         assertThat(indexNames("messages")).contains("idx_messages_direct_dialog_history");
         assertThat(explainUsingIndex(
             """
@@ -179,8 +261,8 @@ class MessagingRepositoryIntegrationTests extends PostgresIntegrationSupport {
         UUID captainId = createUser("captain@example.com", "captain");
         UUID roomId = createRoom(captainId, "Bridge");
         ChatTargetRef roomChat = new ChatTargetRef(ChatTargetType.ROOM, roomId);
-        UUID firstMessageId = createMessage(roomChat, captainId, "first", NOW.minusSeconds(20), "63000000-0000-0000-0000-000000000001").id();
-        UUID secondMessageId = createMessage(roomChat, captainId, "second", NOW.minusSeconds(10), "63000000-0000-0000-0000-000000000002").id();
+        UUID firstMessageId = createMessage(roomChat, captainId, null, "first", NOW.minusSeconds(20), "67000000-0000-0000-0000-000000000001").id();
+        UUID secondMessageId = createMessage(roomChat, captainId, null, "second", NOW.minusSeconds(10), "67000000-0000-0000-0000-000000000002").id();
 
         messagingPersistencePort.saveUnreadMarker(captainId, roomChat, firstMessageId, NOW.minusSeconds(5));
         messagingPersistencePort.saveUnreadMarker(captainId, roomChat, secondMessageId, NOW);
@@ -197,6 +279,7 @@ class MessagingRepositoryIntegrationTests extends PostgresIntegrationSupport {
             captainId,
             roomId
         )).isEqualTo(1);
+        assertThat(messagingPersistencePort.countUnreadMessages(captainId, roomChat)).isZero();
     }
 
     private UUID createUser(String email, String username) {
@@ -230,9 +313,10 @@ class MessagingRepositoryIntegrationTests extends PostgresIntegrationSupport {
         )).id();
     }
 
-    private edu.artemiy.chat.messaging.spi.StoredMessage createMessage(
+    private StoredMessage createMessage(
         ChatTargetRef chat,
         UUID authorUserId,
+        UUID parentMessageId,
         String bodyText,
         Instant createdAt,
         String messageId
@@ -241,6 +325,7 @@ class MessagingRepositoryIntegrationTests extends PostgresIntegrationSupport {
             UUID.fromString(messageId),
             chat,
             authorUserId,
+            parentMessageId,
             bodyText,
             MessageState.ACTIVE,
             createdAt
