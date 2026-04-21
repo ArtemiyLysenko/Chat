@@ -13,12 +13,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import edu.artemiy.chat.identity.api.IdentityErrorType;
 import edu.artemiy.chat.identity.api.IdentityException;
+import edu.artemiy.chat.rooms.api.RoomsErrorType;
+import edu.artemiy.chat.rooms.api.RoomsException;
 
 @RestControllerAdvice(basePackages = "edu.artemiy.chat.app.http")
 class IdentityHttpExceptionHandler {
 
     @ExceptionHandler(IdentityException.class)
     ResponseEntity<ErrorResponse> handleIdentityException(IdentityException exception) {
+        return ResponseEntity.status(httpStatus(exception.errorType()))
+            .body(new ErrorResponse(exception.code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(RoomsException.class)
+    ResponseEntity<ErrorResponse> handleRoomsException(RoomsException exception) {
         return ResponseEntity.status(httpStatus(exception.errorType()))
             .body(new ErrorResponse(exception.code(), exception.getMessage()));
     }
@@ -39,6 +47,15 @@ class IdentityHttpExceptionHandler {
         return switch (errorType) {
             case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+        };
+    }
+
+    private static HttpStatusCode httpStatus(RoomsErrorType errorType) {
+        return switch (errorType) {
+            case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;

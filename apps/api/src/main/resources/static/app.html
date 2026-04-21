@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chat | App Shell</title>
+    <title>Chat | Rooms</title>
     <link rel="stylesheet" href="/assets/app.css" />
     <script type="module" src="/js/app-shell-page.js"></script>
   </head>
@@ -13,30 +13,115 @@
         <header class="shell-header">
           <div class="shell-brand">
             <strong>Chat classic shell</strong>
-            <span class="subtle">Rooms, contacts, and messaging land in later milestones.</span>
+            <span class="subtle">Room catalog, private invites, and moderation are now live. Messaging lands in Milestone 4.</span>
           </div>
           <nav class="nav-links">
-            <a href="/app">Shell</a>
+            <a href="/app">Rooms</a>
             <a href="/app/sessions">Sessions</a>
             <button class="secondary" type="button" data-logout-button>Sign out</button>
           </nav>
         </header>
         <div class="shell-body">
-          <section class="dashboard">
-            <aside class="panel">
-              <h3>Milestone 1 status</h3>
-              <div class="metric-list">
-                <div>
-                  <div class="metric">6</div>
-                  <div class="subtle">identity and password endpoints wired</div>
+          <div class="chat-layout">
+            <aside class="stack">
+              <section class="panel">
+                <div class="split">
+                  <div>
+                    <h3>Joined rooms</h3>
+                    <p>The authenticated shell sidebar uses this list.</p>
+                  </div>
+                  <button class="secondary" type="button" data-refresh-rooms-button>Refresh</button>
                 </div>
-                <div>
-                  <div class="metric">2</div>
-                  <div class="subtle">authenticated pages ready for extension</div>
-                </div>
-              </div>
+                <div class="room-list" data-joined-rooms></div>
+              </section>
+
+              <section class="panel">
+                <h3>Create room</h3>
+                <p>Create public or private rooms on top of the Milestone 1 session and CSRF foundation.</p>
+                <form class="form-grid" data-create-room-form>
+                  <label>
+                    Room name
+                    <input type="text" name="name" maxlength="160" required />
+                  </label>
+                  <label>
+                    Description
+                    <textarea name="description" rows="3" placeholder="Optional room summary"></textarea>
+                  </label>
+                  <label>
+                    Visibility
+                    <select name="visibility">
+                      <option value="PUBLIC">Public</option>
+                      <option value="PRIVATE">Private</option>
+                    </select>
+                  </label>
+                  <div class="actions">
+                    <button type="submit">Create room</button>
+                  </div>
+                </form>
+                <div class="message" data-create-room-message></div>
+              </section>
+
+              <section class="panel">
+                <h3>Open invite</h3>
+                <p>Paste a room id or follow a shared room link to load the private-room pre-join preview.</p>
+                <form class="form-grid" data-open-room-form>
+                  <label>
+                    Room id
+                    <input type="text" name="roomId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required />
+                  </label>
+                  <div class="actions">
+                    <button class="secondary" type="submit">Open room</button>
+                  </div>
+                </form>
+                <div class="message" data-open-room-message></div>
+              </section>
             </aside>
+
             <div class="stack">
+              <section class="panel">
+                <h3>Public room catalog</h3>
+                <p>Public rooms are discoverable unless the current user is banned from them.</p>
+                <div class="message" data-room-message></div>
+                <div class="room-list" data-catalog-rooms></div>
+              </section>
+
+              <section class="panel room-detail-shell">
+                <div class="muted-block" data-room-empty>Select a joined room, browse the public catalog, or open a private invite link to load room details.</div>
+                <div hidden data-room-content>
+                  <div class="room-detail-header">
+                    <div>
+                      <h2 data-room-title></h2>
+                      <p data-room-meta></p>
+                    </div>
+                    <div class="actions" data-room-actions></div>
+                  </div>
+
+                  <div class="preview-banner" hidden data-room-preview></div>
+
+                  <div class="detail-columns">
+                    <section class="detail-card" data-room-members-card>
+                      <h3>Members</h3>
+                      <div class="member-list" data-room-members></div>
+                    </section>
+
+                    <section class="detail-card" data-room-moderation-card>
+                      <h3>Moderation</h3>
+                      <div class="message" data-room-moderation-message></div>
+                      <div class="stack" data-room-invite-controls></div>
+                      <div class="stack" data-room-ban-controls></div>
+                      <div class="stack" data-room-ban-list></div>
+                    </section>
+                  </div>
+
+                  <section class="message-placeholder" data-room-message-panel>
+                    <h3>Message panel</h3>
+                    <p>Chat messages, history, and realtime updates land in Milestone 4. This room detail page intentionally stops at membership and moderation for Milestone 2.</p>
+                  </section>
+                </div>
+              </section>
+            </div>
+
+            <aside class="stack">
               <section class="panel">
                 <h3>Password change</h3>
                 <p>Changing the password preserves this browser session and revokes every other active session.</p>
@@ -59,7 +144,7 @@
 
               <section class="panel">
                 <h3>Account deletion</h3>
-                <p>This milestone tombstones the user row, clears credentials, revokes all sessions, and leaves later cross-feature cleanup behind a no-op hook.</p>
+                <p>Deleting an account now revokes sessions, tombstones the identity, deletes owned rooms, removes memberships in other rooms, and clears room invites and personal bans where applicable.</p>
                 <form class="form-grid" data-account-delete-form>
                   <label>
                     Current password
@@ -73,15 +158,15 @@
               </section>
 
               <section class="panel">
-                <h3>Next milestone hooks</h3>
+                <h3>Milestone 2 notes</h3>
                 <ul class="notes">
-                  <li>The shell navigation can absorb room and contact panels without changing the auth model.</li>
-                  <li>The session store already provides the cookie contract needed for `/ws` authentication later.</li>
-                  <li>Account deletion already exposes the cleanup hook that later room and messaging milestones will fill.</li>
+                  <li>Private-room invitees only get a pre-join preview with the room name and owner.</li>
+                  <li>Joining uses one path for both public rooms and accepted private invites.</li>
+                  <li>Regular-member removal does not ban. Admin removal through member removal does.</li>
                 </ul>
               </section>
-            </div>
-          </section>
+            </aside>
+          </div>
         </div>
       </section>
     </main>

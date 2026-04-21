@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -51,6 +52,9 @@ class IdentityRepositoryIntegrationTests extends PostgresIntegrationSupport {
     private UserJpaRepository userJpaRepository;
 
     @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
     private DataSource dataSource;
 
     @DynamicPropertySource
@@ -65,9 +69,20 @@ class IdentityRepositoryIntegrationTests extends PostgresIntegrationSupport {
             .locations("classpath:db/migration")
             .load()
             .migrate();
-        userSessionJpaRepository.deleteAll();
-        passwordResetTokenJpaRepository.deleteAll();
-        userJpaRepository.deleteAll();
+        jdbcTemplate.execute(
+            """
+                truncate table
+                    moderation_audit_events,
+                    room_bans,
+                    room_invites,
+                    room_memberships,
+                    rooms,
+                    user_sessions,
+                    password_reset_tokens,
+                    users
+                cascade
+                """
+        );
     }
 
     @Test

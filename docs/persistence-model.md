@@ -37,9 +37,9 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 | --- | --- | --- |
 | `rooms` | `id`, `owner_user_id`, `name`, `description`, `visibility`, `created_at` | Public or private room definition |
 | `room_memberships` | `id`, `room_id`, `user_id`, `role`, `joined_at` | Current room membership and role |
-| `room_invites` | `id`, `room_id`, `invited_user_id`, `invited_by_user_id`, `status`, `created_at`, `accepted_at` | Private room invitation workflow |
-| `room_bans` | `id`, `room_id`, `user_id`, `banned_by_user_id`, `reason`, `created_at` | Room-level ban list and actor tracking |
-| `moderation_audit_events` | `id`, `room_id`, `actor_user_id`, `target_user_id`, `message_id`, `action`, `reason`, `metadata_json`, `created_at` | Auditable room moderation record |
+| `room_invites` | `id`, `room_id`, `invited_user_id`, `invited_by_user_id`, `status`, `created_at`, `accepted_at` | Private room invitation workflow, including the pending invite state used to authorize the private-room pre-join preview and the single join path |
+| `room_bans` | `id`, `room_id`, `user_id`, `banned_by_user_id`, `reason`, `created_at` | Room-level ban list and actor tracking; member removal of an admin promotes into this table as part of the same moderation flow |
+| `moderation_audit_events` | `id`, `room_id`, `actor_user_id`, `target_user_id`, `message_id`, `action`, `reason`, `metadata_json`, `created_at` | Auditable room moderation record while the room exists; room deletion hard-deletes this room-owned state with the room |
 
 ### Messaging And Attachments
 
@@ -92,7 +92,8 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 ## Deletion And Retention Rules
 - Deleting a room hard-deletes the room, its memberships, bans, invites, messages, unread markers, moderation events, attachment metadata, and filesystem blobs.
 - Milestone 1 account deletion invalidates sessions, clears credentials, replaces email and username with unique tombstone values, and preserves historical non-owned messages through a tombstoned `users` row.
-- Owned-room deletion and removal from other room memberships land later through the `AccountDeletionImpactPort` cleanup hook once those tables exist.
+- Milestone 2 account deletion cleanup now uses `AccountDeletionImpactPort` to delete rooms owned by the deleted user, remove their memberships from other rooms, remove invites created by or for them, and remove bans targeting them.
+- Tombstoned `users` rows remain in place so moderation audit records and surviving ban-actor references in non-deleted rooms can still resolve historical actors.
 - Tombstoning clears login ability and personal identifiers while keeping a stable row for later message authorship joins and UI rendering.
 - Friendship removal preserves direct-dialog history but prevents new direct messages until friendship is re-established.
 - User blocks preserve direct-dialog history but deny new direct messages and new contact requests.

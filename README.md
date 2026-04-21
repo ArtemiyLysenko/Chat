@@ -16,8 +16,8 @@ The target product is a classic web chat application with:
 - admin screens for Jabber connections and federation traffic
 
 ## Current Status
-Milestone 1 is implemented.
-The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, account deletion entry, and the first authenticated app shell.
+Milestone 2 is completed and verified.
+The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, and rooms-side account deletion cleanup inside the authenticated shell.
 
 ## Repository Layout
 - `apps/api` Spring Boot application and initial web delivery
@@ -61,4 +61,4 @@ See:
 3. Open `http://localhost:8080/` for the unauthenticated entry surface and `http://localhost:8080/actuator/health` for the health endpoint.
 
 ## Immediate Next Step
-Implement Milestone 2 room catalog, membership, and moderation on top of the Milestone 1 identity, cookie-auth, Flyway, and static-web foundation.
+Implement Milestone 3 friendships, blocks, and direct-dialog eligibility on top of the verified identity and rooms foundation.

@@ -8,6 +8,6 @@ import org.springframework.context.annotation.Import;
 @SpringBootConfiguration
 @EnableAutoConfiguration
 @Import(PersistenceJpaConfiguration.class)
-@ComponentScan("edu.artemiy.chat.adapters.persistence.jpa.identity")
+@ComponentScan("edu.artemiy.chat.adapters.persistence.jpa")
 public class PersistenceJpaTestApplication {
 }

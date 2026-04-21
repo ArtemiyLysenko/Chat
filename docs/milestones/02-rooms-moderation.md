@@ -53,8 +53,14 @@ Messaging is still deferred, so room pages may use a placeholder message panel u
 - Use the room and moderation endpoints already defined in `docs/api-contracts.md`.
 - `POST /api/rooms` accepts `name`, `description`, and `visibility`.
 - `POST /api/rooms/{roomId}/invites` accepts a target user id.
+- Invited users of a private room may load only a pre-join preview containing the room name and room owner.
+- Invitation acceptance reuses `POST /api/rooms/{roomId}/join`; there is one membership-entry path.
+- Removing a regular member means remove only, not remove plus ban.
+- Removing an admin through member removal means remove, create ban, and record moderation.
 - `PUT /api/rooms/{roomId}/bans/{userId}` accepts an optional `reason`.
 - `GET /api/rooms/{roomId}/bans` returns current ban records with actor and timestamp metadata.
+- Account deletion from Milestone 1 now performs concrete rooms cleanup: owned rooms are deleted, non-owned memberships are removed, invites created by or for the deleted user are removed, and bans targeting the deleted user are cleared.
+- `DELETE /api/rooms/{roomId}` records `ROOM_DELETED` inside the delete transaction, and the later hard delete removes all room-owned moderation records with the room.
 - All room-read endpoints must hide private-room existence from unauthorized callers.
 
 ## Tests And Evidence
@@ -63,8 +69,9 @@ Messaging is still deferred, so room pages may use a placeholder message panel u
   - persistence tests for uniqueness and membership or ban integrity rules
   - HTTP integration tests for public catalog, private-room access denial, moderation actions, and room-delete behavior
 - Manual
-  - UI proof for public room discovery and private invite flow
-  - moderation screenshots for admin grant, ban, and room delete
+  - UI proof for public room discovery and full public-room detail loading
+  - UI proof for private invite preview and invite-based join
+  - moderation screenshots for admin grant or admin removal, ban-list inspection, and room delete
 
 ## Exit Criteria
 - Room authorization boundaries match the contract and do not leak hidden room details.

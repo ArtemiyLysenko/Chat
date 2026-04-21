@@ -16,6 +16,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | Type | Values or shape | Notes |
 | --- | --- | --- |
 | `ChatTargetRef` | `{ type: ROOM | DIRECT, id: UUID }` | Canonical chat reference across HTTP and WebSocket |
+| `RoomAccessLevel` | `FULL`, `INVITED_PREVIEW` | `INVITED_PREVIEW` exposes only the room name and owner for invited private-room users before join |
 | `PresenceState` | `ONLINE`, `AFK`, `OFFLINE` | Derived from active tabs |
 | `MembershipRole` | `OWNER`, `ADMIN`, `MEMBER` | Room-only role model |
 | `MessageState` | `ACTIVE`, `EDITED`, `DELETED` | Message deletes stay visible as tombstones |
@@ -40,7 +41,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `POST` | `/api/auth/password/change` | Change password for current user | Returns `204`, requires current authenticated session, keeps that session active, and revokes all other sessions |
 | `POST` | `/api/auth/password/reset-requests` | Request a password reset token | Returns `202` even for unknown email; local and test profiles log the raw reset URL once |
 | `POST` | `/api/auth/password/reset` | Consume password reset token | Returns `204`, invalidates outstanding reset tokens, and revokes all sessions after success |
-| `DELETE` | `/api/account` | Delete current account | Returns `204`, clears the current session cookie, tombstones the identity, and invokes the later cleanup hook for room and messaging side effects |
+| `DELETE` | `/api/account` | Delete current account | Returns `204`, clears the current session cookie, tombstones the identity, deletes owned rooms, removes memberships in non-owned rooms, clears room invites created by or for the user, removes bans targeting the user, and leaves later messaging-side cleanup for later milestones |
 
 ### Browser UI Routes
 
@@ -60,17 +61,17 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | --- | --- | --- | --- |
 | `GET` | `/api/rooms` | List rooms for the caller | Supports `scope=joined` for the sidebar list and `scope=catalog` for public room discovery |
 | `POST` | `/api/rooms` | Create room | Unique room name, public or private visibility |
-| `GET` | `/api/rooms/{roomId}` | Load room details and caller membership | Hidden or banned rooms must not leak information |
-| `POST` | `/api/rooms/{roomId}/join` | Join a public room | Must fail if banned |
+| `GET` | `/api/rooms/{roomId}` | Load room details and caller membership | Public rooms expose full details to authenticated, non-banned users. Private rooms expose full details only to members. Invited private-room users may load only `INVITED_PREVIEW`, which includes the room name and owner. Hidden or banned rooms must not leak information |
+| `POST` | `/api/rooms/{roomId}/join` | Join a room | This is the single membership-entry path for both public rooms and accepted private invites. It must fail if the caller is banned or lacks a private-room invite |
 | `POST` | `/api/rooms/{roomId}/leave` | Leave a room | Owner must be denied and instructed to delete the room instead |
 | `POST` | `/api/rooms/{roomId}/invites` | Invite a user to a private room | Admin or owner only |
 | `PUT` | `/api/rooms/{roomId}/admins/{userId}` | Grant admin role | Owner only |
 | `DELETE` | `/api/rooms/{roomId}/admins/{userId}` | Revoke admin role | Owner only |
-| `DELETE` | `/api/rooms/{roomId}/members/{userId}` | Remove a member from the room | Removing an admin must also record a ban |
+| `DELETE` | `/api/rooms/{roomId}/members/{userId}` | Remove a member from the room | Removing a regular member is remove-only. Removing an admin removes membership, creates a ban, and records both moderation events |
 | `GET` | `/api/rooms/{roomId}/bans` | Inspect room bans | Includes who placed each ban |
-| `PUT` | `/api/rooms/{roomId}/bans/{userId}` | Ban a user | Records actor and reason |
+| `PUT` | `/api/rooms/{roomId}/bans/{userId}` | Ban a user | Records actor and reason, removes any current membership, and clears any pending invite |
 | `DELETE` | `/api/rooms/{roomId}/bans/{userId}` | Unban a user | Admin or owner only |
-| `DELETE` | `/api/rooms/{roomId}` | Delete room | Owner only; cascades messages and attachments |
+| `DELETE` | `/api/rooms/{roomId}` | Delete room | Owner only; hard-deletes room-owned state including memberships, invites, bans, and moderation records. Later milestones extend this cascade to messages and attachments |
 
 ### Contacts And Direct Messaging
 

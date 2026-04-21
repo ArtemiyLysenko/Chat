@@ -8,6 +8,7 @@ dependencies {
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
     implementation(project(":modules:features:identity"))
+    implementation(project(":modules:features:rooms"))
 
     runtimeOnly(libs.postgresql)
 

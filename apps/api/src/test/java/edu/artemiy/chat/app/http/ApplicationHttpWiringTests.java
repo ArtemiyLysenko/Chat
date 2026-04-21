@@ -58,9 +58,20 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
             .locations("classpath:db/migration")
             .load()
             .migrate();
-        jdbcTemplate.execute("delete from user_sessions");
-        jdbcTemplate.execute("delete from password_reset_tokens");
-        jdbcTemplate.execute("delete from users");
+        jdbcTemplate.execute(
+            """
+                truncate table
+                    moderation_audit_events,
+                    room_bans,
+                    room_invites,
+                    room_memberships,
+                    rooms,
+                    user_sessions,
+                    password_reset_tokens,
+                    users
+                cascade
+                """
+        );
     }
 
     @Test

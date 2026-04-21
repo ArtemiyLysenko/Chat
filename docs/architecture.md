@@ -56,19 +56,22 @@ It builds on ADR 0001 and should be read together with:
 ## Cross-Cutting Rules
 - Session-cookie authentication is the MVP default for both HTTP and WebSocket access.
 - Commands are processed over HTTP. WebSocket is the fan-out channel for server events and the control channel for tab activity signals.
+- Public rooms are discoverable and readable by authenticated users unless they are banned. Private rooms stay hidden from non-members except for invited users, who may load a pre-join preview that exposes only the room name and owner.
+- Room membership uses one join path: `POST /api/rooms/{roomId}/join` handles both public joins and invited private-room joins.
 - Direct dialogs are allowed only while both users are friends and neither has blocked the other.
 - Users removed from or banned from a room lose access immediately to that room's message history, attachments, and future events.
+- Removing a regular room member is remove-only. Removing an admin through member removal also creates a ban and records moderation events.
 - XMPP-connected clients and federated peers must map onto the same authorization and history rules as the web UI.
 - Message history uses cursor pagination from the start. Initial load returns the newest window; older windows are fetched by cursor and rendered chronologically.
 - Room names are globally unique. Owners cannot leave their own room; they must delete it instead.
-- Milestone 1 account deletion removes credentials, revokes sessions, tombstones the user row, and invokes `AccountDeletionImpactPort`. Later room and messaging milestones attach owned-room deletion and membership cleanup to that hook to reach the full MVP deletion policy.
+- Milestone 1 account deletion removes credentials, revokes sessions, tombstones the user row, and invokes `AccountDeletionImpactPort`. Milestone 2 now uses that hook to delete owned rooms, remove non-owned room memberships, clear room invites created by or for the deleted user, and clear bans targeting the deleted user. Surviving moderation and ban-actor references continue to point at the tombstoned `users` row.
 - The web UI must expose Jabber administration screens for current connections and federation traffic statistics.
 
 ## Critical End-To-End Flows
 1. Registration, login, logout, and session revocation
    The browser uses same-origin HTTP to register or authenticate, receives a persistent session cookie backed by `user_sessions`, opens a WebSocket with that cookie, and can later revoke a single session without affecting the others.
 2. Room catalog, membership, and moderation
-   Public rooms are discoverable and joinable by authenticated users unless banned. Private rooms require invitation. Role changes, bans, removals, and room deletion must update both database state and live subscriptions.
+   Public rooms are discoverable and their full details are readable by authenticated users unless banned. Private rooms require invitation for join, and invited users only see the room name and owner before they join. Role changes, bans, removals, and room deletion must update database state consistently, with member removal keeping regular-member removal separate from admin removal plus ban.
 3. Friendship to direct-dialog eligibility
    A direct dialog exists only for an accepted friendship with no active block on either side. Blocking a user terminates the friendship relation and freezes the existing direct-dialog history.
 4. Message send, edit, delete, and unread updates

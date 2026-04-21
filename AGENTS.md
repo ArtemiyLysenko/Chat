@@ -22,8 +22,14 @@ Build a classic web chat application for the AI Herders Jam hackathon with AI-fi
 
 ## Working Rules
 - Use facts from the brief and repo docs. If a fact is missing, state the assumption and record it in `docs/bet-register.md` or an ADR.
+- When working with libraries, frameworks, dependency versions, artifact coordinates, or official integration guidance, use the `context7` and `sonatype` MCP servers as primary sources of truth before making or changing implementation decisions.
+- When working on browser UI, user flows, or web integration verification, use the Playwright MCP tools where they are a reasonable fit for fast, direct validation of the actual rendered behavior.
 - Keep the repository runnable by `docker compose up` from the root once implementation starts.
 - Prefer one coherent stack across frontend, backend, realtime, persistence, and tests.
+- Follow KISS, DRY, and YAGNI: keep designs simple, avoid duplication, and do not add abstractions, infrastructure, or flexibility unless a concrete requirement or measured need justifies them.
+- In Java code, prefer modern Java 25 syntax and current language features when they improve clarity, reduce boilerplate, and fit the governed architecture.
+- After making changes, perform a code review of the work from a reviewer mindset: check correctness, regressions, edge cases, contract alignment, and test coverage gaps before finishing.
+- Double-check the final implementation, tests, docs, and assumptions before declaring the task complete.
 - Preserve classic web chat UX over novelty UI.
 - Design for up to 300 concurrent users without premature infrastructure complexity.
 - The governed application stack is Java 25, Gradle, Spring Boot, and PostgreSQL. Do not change that without an explicit replacement ADR.
