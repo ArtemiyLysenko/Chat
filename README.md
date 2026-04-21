@@ -60,5 +60,10 @@ See:
 2. Run `docker compose up --build` from the repository root.
 3. Open `http://localhost:8080/` for the unauthenticated entry surface and `http://localhost:8080/actuator/health` for the health endpoint.
 
+## Compose Defaults
+- The default root-level Compose flow exposes only the web app on `APP_PORT` and keeps PostgreSQL internal to the Compose network.
+- This avoids host-port conflicts on `5432` and makes `docker compose up` from the repository root more reliable for reviewers.
+- If you need interactive database access, use `docker compose exec db psql -U ${POSTGRES_USER:-chat} -d ${POSTGRES_DB:-chat}` from the repository root.
+
 ## Immediate Next Step
 Implement Milestone 3 friendships, blocks, and direct-dialog eligibility on top of the verified identity and rooms foundation.
