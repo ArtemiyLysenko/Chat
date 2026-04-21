@@ -2,7 +2,9 @@ package edu.artemiy.chat.adapters.persistence.jpa.messaging;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,9 +17,11 @@ import edu.artemiy.chat.messaging.api.MessageState;
 import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
 import edu.artemiy.chat.messaging.spi.StoredMessage;
+import edu.artemiy.chat.messaging.spi.StoredMessageAttachment;
 import edu.artemiy.chat.messaging.spi.StoredMessageAuthor;
 import edu.artemiy.chat.messaging.spi.StoredMessageReplyTarget;
 import edu.artemiy.chat.messaging.spi.StoredUnreadMarker;
+import edu.artemiy.chat.adapters.persistence.jpa.attachments.MessageAttachmentJpaRepository;
 
 @Component
 class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
@@ -85,15 +89,18 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
         """;
 
     private final MessageJpaRepository messageJpaRepository;
+    private final MessageAttachmentJpaRepository messageAttachmentJpaRepository;
     private final ChatUnreadMarkerJpaRepository chatUnreadMarkerJpaRepository;
     private final JdbcTemplate jdbcTemplate;
 
     JpaMessagingPersistenceAdapter(
         MessageJpaRepository messageJpaRepository,
+        MessageAttachmentJpaRepository messageAttachmentJpaRepository,
         ChatUnreadMarkerJpaRepository chatUnreadMarkerJpaRepository,
         JdbcTemplate jdbcTemplate
     ) {
         this.messageJpaRepository = messageJpaRepository;
+        this.messageAttachmentJpaRepository = messageAttachmentJpaRepository;
         this.chatUnreadMarkerJpaRepository = chatUnreadMarkerJpaRepository;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -134,23 +141,28 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
     @Override
     public Optional<StoredMessage> findMessage(UUID messageId) {
         return messageJpaRepository.findMessageProjectionById(messageId)
-            .map(JpaMessagingPersistenceAdapter::toStoredMessage);
+            .map(projection -> toStoredMessage(
+                projection,
+                attachmentsByMessageId(List.of(messageId)).getOrDefault(messageId, List.of())
+            ));
     }
 
     @Override
     public List<StoredMessage> listLatestMessages(ChatTargetRef chat, int limit) {
-        return (switch (chat.type()) {
+        List<MessageJpaRepository.MessageProjection> projections = switch (chat.type()) {
             case ROOM -> messageJpaRepository.findLatestRoomMessages(chat.id(), limit);
             case DIRECT -> messageJpaRepository.findLatestDirectDialogMessages(chat.id(), limit);
-        }).stream().map(JpaMessagingPersistenceAdapter::toStoredMessage).toList();
+        };
+        return toStoredMessages(projections);
     }
 
     @Override
     public List<StoredMessage> listMessagesBefore(ChatTargetRef chat, Instant beforeCreatedAt, UUID beforeMessageId, int limit) {
-        return (switch (chat.type()) {
+        List<MessageJpaRepository.MessageProjection> projections = switch (chat.type()) {
             case ROOM -> messageJpaRepository.findRoomMessagesBefore(chat.id(), beforeCreatedAt, beforeMessageId, limit);
             case DIRECT -> messageJpaRepository.findDirectDialogMessagesBefore(chat.id(), beforeCreatedAt, beforeMessageId, limit);
-        }).stream().map(JpaMessagingPersistenceAdapter::toStoredMessage).toList();
+        };
+        return toStoredMessages(projections);
     }
 
     @Override
@@ -203,7 +215,42 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
         };
     }
 
-    private static StoredMessage toStoredMessage(MessageJpaRepository.MessageProjection projection) {
+    private List<StoredMessage> toStoredMessages(List<MessageJpaRepository.MessageProjection> projections) {
+        Map<UUID, List<StoredMessageAttachment>> attachmentsByMessageId = attachmentsByMessageId(
+            projections.stream().map(MessageJpaRepository.MessageProjection::getMessageId).toList()
+        );
+        return projections.stream()
+            .map(projection -> toStoredMessage(
+                projection,
+                attachmentsByMessageId.getOrDefault(projection.getMessageId(), List.of())
+            ))
+            .toList();
+    }
+
+    private Map<UUID, List<StoredMessageAttachment>> attachmentsByMessageId(List<UUID> messageIds) {
+        if (messageIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<StoredMessageAttachment>> attachments = new LinkedHashMap<>();
+        for (MessageAttachmentJpaRepository.MessageAttachmentProjection projection :
+            messageAttachmentJpaRepository.findAttachmentProjectionsByMessageIds(messageIds)) {
+            attachments.computeIfAbsent(projection.getMessageId(), ignored -> new java.util.ArrayList<>())
+                .add(new StoredMessageAttachment(
+                    projection.getAttachmentId(),
+                    projection.getOriginalName(),
+                    projection.getMediaType(),
+                    projection.getSizeBytes(),
+                    projection.getCommentText(),
+                    projection.getSortOrder()
+                ));
+        }
+        return attachments;
+    }
+
+    private static StoredMessage toStoredMessage(
+        MessageJpaRepository.MessageProjection projection,
+        List<StoredMessageAttachment> attachments
+    ) {
         return new StoredMessage(
             projection.getMessageId(),
             projection.getRoomId() != null
@@ -231,7 +278,8 @@ class JpaMessagingPersistenceAdapter implements MessagingPersistencePort {
                     ),
                     projection.getParentBodyText(),
                     MessageState.valueOf(projection.getParentState())
-                )
+                ),
+            attachments
         );
     }
 

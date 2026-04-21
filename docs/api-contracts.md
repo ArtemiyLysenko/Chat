@@ -122,7 +122,8 @@ Milestone 4.2 response shapes:
   "state": "ACTIVE",
   "createdAt": "2026-04-21T12:00:00Z",
   "editedAt": null,
-  "replyTo": null
+  "replyTo": null,
+  "attachments": []
 }
 ```
 
@@ -168,7 +169,8 @@ Milestone 4.2 response shapes:
     },
     "bodyText": "Deleted message",
     "state": "DELETED"
-  }
+  },
+  "attachments": []
 }
 ```
 
@@ -176,9 +178,25 @@ Milestone 4.2 response shapes:
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `POST` | `/api/chats/{chatType}/{chatId}/attachments` | Upload file or image and optional comment | Multipart form, 20 MB file cap and 3 MB image cap |
+| `POST` | `/api/chats/{chatType}/{chatId}/attachments` | Upload file or image and optional comment | Multipart form with required `file`, optional `commentText`, and reserved `messageId`; 20 MB file cap and 3 MB image cap |
 | `GET` | `/api/attachments/{attachmentId}` | Read attachment metadata | Same authorization as download |
 | `GET` | `/api/attachments/{attachmentId}/download` | Download binary content | Authorization checked at request time |
+
+Milestone 5.1 contract notes:
+- `messageId` is reserved for a later attach-to-existing-message flow. The current backend returns `400` with `attachments.message_binding_unsupported` when it is provided.
+- `ChatMessage` now includes `attachments`, ordered by `sortOrder`. Text-only messages return an empty array.
+
+`AttachmentDescriptor` remains the metadata response shape for upload and metadata reads:
+
+```json
+{
+  "id": "uuid",
+  "storageKey": "uploads/uuid",
+  "originalName": "notes.txt",
+  "mediaType": "text/plain",
+  "sizeBytes": 128
+}
+```
 
 ### Jabber Administration
 

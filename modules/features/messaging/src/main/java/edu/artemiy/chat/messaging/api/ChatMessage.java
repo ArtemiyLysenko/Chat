@@ -1,6 +1,7 @@
 package edu.artemiy.chat.messaging.api;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -12,7 +13,8 @@ public record ChatMessage(
     MessageState state,
     Instant createdAt,
     Instant editedAt,
-    MessageReplyTarget replyTo
+    MessageReplyTarget replyTo,
+    List<MessageAttachment> attachments
 ) {
 
     public ChatMessage {
@@ -22,5 +24,6 @@ public record ChatMessage(
         Objects.requireNonNull(bodyText, "Message body is required.");
         Objects.requireNonNull(state, "Message state is required.");
         Objects.requireNonNull(createdAt, "Message creation time is required.");
+        attachments = attachments == null ? List.of() : List.copyOf(attachments);
     }
 }

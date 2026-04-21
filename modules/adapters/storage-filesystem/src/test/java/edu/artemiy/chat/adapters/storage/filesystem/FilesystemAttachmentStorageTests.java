@@ -21,5 +21,16 @@ class FilesystemAttachmentStorageTests {
 
         assertThat(storage.exists("chat/test.txt")).isTrue();
         assertThat(Files.readString(tempDir.resolve("chat/test.txt"))).isEqualTo("hello");
+        assertThat(storage.read("chat/test.txt")).isEqualTo("hello".getBytes());
+    }
+
+    @Test
+    void deletesStoredAttachments() throws Exception {
+        FilesystemAttachmentStorage storage = new FilesystemAttachmentStorage(tempDir);
+
+        storage.store("chat/test.txt", "hello".getBytes());
+        storage.delete("chat/test.txt");
+
+        assertThat(storage.exists("chat/test.txt")).isFalse();
     }
 }

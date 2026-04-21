@@ -16,8 +16,8 @@ The target product is a classic web chat application with:
 - admin screens for Jabber connections and federation traffic
 
 ## Current Status
-Milestone 4 is completed and verified.
-The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side and contacts-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, friend removal, user block and unblock flows, centralized direct-message eligibility rules, stable direct-dialog ensure or fetch, HTTP room and direct-dialog history reads, forward-only unread markers, reply-capable sends, message edit and logical delete, live room and direct-dialog browser updates over the authenticated `/ws` channel, reconnect-driven HTTP refresh after socket recovery, and live browser redirect when the current session is revoked.
+Milestone 4 is completed and verified, and Milestone 5.1 is now completed and verified.
+The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side and contacts-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, friend removal, user block and unblock flows, centralized direct-message eligibility rules, stable direct-dialog ensure or fetch, HTTP room and direct-dialog history reads, forward-only unread markers, reply-capable sends, message edit and logical delete, live room and direct-dialog browser updates over the authenticated `/ws` channel, reconnect-driven HTTP refresh after socket recovery, live browser redirect when the current session is revoked, and the new attachment backend with message-bound metadata, filesystem blob storage, authorized metadata reads, and authorized downloads.
 
 ## Repository Layout
 - `apps/api` Spring Boot application and initial web delivery
@@ -66,4 +66,4 @@ See:
 - If you need interactive database access, use `docker compose exec db psql -U ${POSTGRES_USER:-chat} -d ${POSTGRES_DB:-chat}` from the repository root.
 
 ## Immediate Next Step
-Implement Milestone 5.1 only: add the attachments backend, message-bound metadata and blob persistence, authorized metadata and download reads, and the filesystem storage adapter while keeping previews reserved for later.
+Implement Milestone 5.2 only: wire attachments into the room and direct-dialog timeline UI, add upload-button and paste-image flows, enforce immediate access loss after room removal or ban in the browser, and prove room-delete metadata plus blob cleanup.

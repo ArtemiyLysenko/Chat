@@ -1,10 +1,12 @@
 package edu.artemiy.chat.attachments.spi;
 
-import java.net.URI;
-
 public interface AttachmentStoragePort {
 
-    URI store(String storageKey, byte[] content);
+    void store(String storageKey, byte[] content);
+
+    byte[] read(String storageKey);
+
+    void delete(String storageKey);
 
     boolean exists(String storageKey);
 }

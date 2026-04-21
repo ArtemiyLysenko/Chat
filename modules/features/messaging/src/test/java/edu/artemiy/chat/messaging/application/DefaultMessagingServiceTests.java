@@ -447,7 +447,8 @@ class DefaultMessagingServiceTests {
             state,
             createdAt,
             editedAt,
-            replyTarget
+            replyTarget,
+            List.of()
         ));
     }
 
@@ -604,7 +605,8 @@ class DefaultMessagingServiceTests {
                         parentMessage.author(),
                         parentMessage.bodyText(),
                         parentMessage.state()
-                    )
+                    ),
+                List.of()
             );
             messages.put(storedMessage.id(), storedMessage);
             return storedMessage;
@@ -621,7 +623,8 @@ class DefaultMessagingServiceTests {
                 MessageState.EDITED,
                 existing.createdAt(),
                 editedAt,
-                existing.replyTo()
+                existing.replyTo(),
+                existing.attachments()
             );
             messages.put(messageId, updated);
             return updated;
@@ -638,7 +641,8 @@ class DefaultMessagingServiceTests {
                 MessageState.DELETED,
                 existing.createdAt(),
                 existing.editedAt(),
-                existing.replyTo()
+                existing.replyTo(),
+                existing.attachments()
             );
             messages.put(messageId, deleted);
             return deleted;

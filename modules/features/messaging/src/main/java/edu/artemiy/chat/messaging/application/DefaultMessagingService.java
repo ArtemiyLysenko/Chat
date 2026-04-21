@@ -24,6 +24,7 @@ import edu.artemiy.chat.messaging.api.ChatMessage;
 import edu.artemiy.chat.messaging.api.ChatTargetRef;
 import edu.artemiy.chat.messaging.api.EditMessageCommand;
 import edu.artemiy.chat.messaging.api.MessageAuthor;
+import edu.artemiy.chat.messaging.api.MessageAttachment;
 import edu.artemiy.chat.messaging.api.MessageEventType;
 import edu.artemiy.chat.messaging.api.MessageHistoryPage;
 import edu.artemiy.chat.messaging.api.MessageReplyTarget;
@@ -39,6 +40,7 @@ import edu.artemiy.chat.messaging.domain.MessageBodyRules;
 import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
 import edu.artemiy.chat.messaging.spi.StoredMessage;
+import edu.artemiy.chat.messaging.spi.StoredMessageAttachment;
 import edu.artemiy.chat.messaging.spi.StoredMessageReplyTarget;
 import edu.artemiy.chat.messaging.spi.StoredUnreadMarker;
 import edu.artemiy.chat.rooms.api.MembershipRole;
@@ -379,7 +381,8 @@ public class DefaultMessagingService implements MessagingService {
             storedMessage.state(),
             storedMessage.createdAt(),
             storedMessage.editedAt(),
-            toReplyTarget(storedMessage.replyTo())
+            toReplyTarget(storedMessage.replyTo()),
+            storedMessage.attachments().stream().map(DefaultMessagingService::toMessageAttachment).toList()
         );
     }
 
@@ -404,6 +407,17 @@ public class DefaultMessagingService implements MessagingService {
             toMessageAuthor(replyTarget.author()),
             visibleBodyText(replyTarget.bodyText(), replyTarget.state()),
             replyTarget.state()
+        );
+    }
+
+    private static MessageAttachment toMessageAttachment(StoredMessageAttachment attachment) {
+        return new MessageAttachment(
+            attachment.attachmentId(),
+            attachment.originalName(),
+            attachment.mediaType(),
+            attachment.sizeBytes(),
+            attachment.commentText(),
+            attachment.sortOrder()
         );
     }
 

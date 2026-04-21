@@ -1,7 +1,6 @@
 package edu.artemiy.chat.adapters.storage.filesystem;
 
 import java.io.UncheckedIOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -16,7 +15,7 @@ public final class FilesystemAttachmentStorage implements AttachmentStoragePort 
     }
 
     @Override
-    public URI store(String storageKey, byte[] content) {
+    public void store(String storageKey, byte[] content) {
         Path target = storageRoot.resolve(storageKey);
         try {
             Files.createDirectories(target.getParent() == null ? storageRoot : target.getParent());
@@ -24,7 +23,24 @@ public final class FilesystemAttachmentStorage implements AttachmentStoragePort 
         } catch (java.io.IOException exception) {
             throw new UncheckedIOException("Unable to store attachment " + storageKey, exception);
         }
-        return target.toUri();
+    }
+
+    @Override
+    public byte[] read(String storageKey) {
+        try {
+            return Files.readAllBytes(storageRoot.resolve(storageKey));
+        } catch (java.io.IOException exception) {
+            throw new UncheckedIOException("Unable to read attachment " + storageKey, exception);
+        }
+    }
+
+    @Override
+    public void delete(String storageKey) {
+        try {
+            Files.deleteIfExists(storageRoot.resolve(storageKey));
+        } catch (java.io.IOException exception) {
+            throw new UncheckedIOException("Unable to delete attachment " + storageKey, exception);
+        }
     }
 
     @Override

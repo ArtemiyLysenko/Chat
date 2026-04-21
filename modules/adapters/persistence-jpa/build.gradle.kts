@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":modules:features:rooms"))
     implementation(project(":modules:features:contacts"))
     implementation(project(":modules:features:messaging"))
+    implementation(project(":modules:features:attachments"))
 
     runtimeOnly(libs.postgresql)
 
