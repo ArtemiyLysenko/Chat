@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -64,6 +65,25 @@ interface FriendshipRequestJpaRepository extends JpaRepository<FriendshipRequest
         nativeQuery = true
     )
     List<PendingFriendRequestProjection> findOutboundPendingRequests(@Param("userId") UUID userId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(
+        """
+            update FriendshipRequestEntity r
+            set r.status = edu.artemiy.chat.contacts.spi.FriendshipRequestStatus.REJECTED,
+                r.respondedAt = :respondedAt
+            where r.status = edu.artemiy.chat.contacts.spi.FriendshipRequestStatus.PENDING
+              and (
+                    (r.requesterUserId = :firstUserId and r.recipientUserId = :secondUserId)
+                 or (r.requesterUserId = :secondUserId and r.recipientUserId = :firstUserId)
+              )
+            """
+    )
+    int rejectPendingRequestsBetween(
+        @Param("firstUserId") UUID firstUserId,
+        @Param("secondUserId") UUID secondUserId,
+        @Param("respondedAt") Instant respondedAt
+    );
 
     interface PendingFriendRequestProjection {
 

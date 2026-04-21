@@ -24,15 +24,15 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 
 ### Contacts And Direct Messaging
 
-Milestone 3.1 currently implements only `friendship_requests` and `friendships`.
-`user_blocks` and `direct_dialogs` remain planned logical tables for later Milestone 3 slices and are not yet present in the schema.
+Milestone 3.2 currently implements `friendship_requests`, `friendships`, and `user_blocks`.
+`direct_dialogs` remains a planned logical table for Milestone 3.3 and is not yet present in the schema.
 
 | Table | Key columns | Purpose |
 | --- | --- | --- |
 | `friendship_requests` | `id`, `requester_user_id`, `recipient_user_id`, `message_text`, `status`, `created_at`, `responded_at` | Pending inbound and outbound friend requests |
 | `friendships` | `id`, `user_low_id`, `user_high_id`, `created_at` | Active symmetric friendship relation |
-| `user_blocks` | `id`, `blocker_user_id`, `blocked_user_id`, `created_at` | Planned later Milestone 3 table for preventing new contact and direct messages |
-| `direct_dialogs` | `id`, `user_low_id`, `user_high_id`, `created_at`, `last_message_at` | Planned later Milestone 3 table for the stable direct chat identity per user pair |
+| `user_blocks` | `id`, `blocker_user_id`, `blocked_user_id`, `created_at` | Active directional user blocks that deny new friend requests and new direct messages while active |
+| `direct_dialogs` | `id`, `user_low_id`, `user_high_id`, `created_at`, `last_message_at` | Planned Milestone 3.3 table for the stable direct chat identity per user pair |
 
 ### Rooms And Moderation
 
@@ -66,7 +66,8 @@ Milestone 3.1 currently implements only `friendship_requests` and `friendships`.
 - `rooms.name` must be globally unique.
 - `friendship_requests` must reject duplicate pending requests in the same direction.
 - `friendships` must be unique per ordered user pair.
-- `direct_dialogs` must be unique per ordered user pair once that table lands in a later Milestone 3 slice.
+- `user_blocks` must be unique per blocker and blocked direction pair.
+- `direct_dialogs` must be unique per ordered user pair once that table lands in Milestone 3.3.
 - `room_memberships` must be unique per active room and user pair.
 - `room_bans` must be unique per active room and user pair.
 - `messages` must reference exactly one target: either `room_id` or `direct_dialog_id`.
@@ -104,4 +105,4 @@ Milestone 3.1 currently implements only `friendship_requests` and `friendships`.
 - Tombstoned `users` rows remain in place so moderation audit records and surviving ban-actor references in non-deleted rooms can still resolve historical actors.
 - Tombstoning clears login ability and personal identifiers while keeping a stable row for later message authorship joins and UI rendering.
 - Friendship removal preserves direct-dialog history but prevents new direct messages until friendship is re-established.
-- User blocks preserve direct-dialog history but deny new direct messages and new contact requests.
+- User blocks preserve direct-dialog history, deny new direct messages and new contact requests, and immediately retire any pending friendship request between the pair into rejected state.

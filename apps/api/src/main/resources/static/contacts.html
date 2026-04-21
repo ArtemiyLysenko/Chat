@@ -13,7 +13,7 @@
         <header class="shell-header">
           <div class="shell-brand">
             <strong>Chat contacts</strong>
-            <span class="subtle">Milestone 3.1 adds friendship requests, acceptance, rejection, and a dedicated contacts view.</span>
+            <span class="subtle">Milestone 3.2 adds remove-friend, block, unblock, and shared direct-message eligibility rules.</span>
           </div>
           <nav class="nav-links">
             <a href="/app">Rooms</a>
@@ -54,11 +54,11 @@
               </section>
 
               <section class="panel">
-                <h3>Milestone 3.1 notes</h3>
+                <h3>Milestone 3.2 notes</h3>
                 <ul class="notes">
                   <li>Reverse-direction requests auto-accept the existing pending request.</li>
-                  <li>Accepted friends, inbound requests, and outbound requests load from one contacts endpoint.</li>
-                  <li>Blocks and direct dialogs remain deferred to later Milestone 3 slices.</li>
+                  <li>Blocking removes existing friendship and hides the pair from accepted or pending sections.</li>
+                  <li>Unblocking removes the block only; friendship and direct dialogs stay deferred.</li>
                 </ul>
               </section>
             </aside>
@@ -66,7 +66,7 @@
             <div class="stack">
               <section class="panel">
                 <h2>Accepted friends</h2>
-                <p>These relationships are ready for later direct-dialog eligibility work.</p>
+                <p>These relationships are the only pairs currently eligible for future direct dialogs when no block exists.</p>
                 <div class="message" data-contacts-message></div>
                 <div class="room-list" data-friends-list></div>
               </section>
@@ -74,16 +74,22 @@
               <div class="detail-columns">
                 <section class="detail-card">
                   <h3>Inbound pending</h3>
-                  <p>Accept or reject requests addressed to the current user.</p>
+                  <p>Accept, reject, or block requests addressed to the current user.</p>
                   <div class="member-list" data-inbound-requests-list></div>
                 </section>
 
                 <section class="detail-card">
                   <h3>Outbound pending</h3>
-                  <p>These requests are still waiting for the other user to respond.</p>
+                  <p>These requests are still waiting for the other user to respond. You can still block the target.</p>
                   <div class="member-list" data-outbound-requests-list></div>
                 </section>
               </div>
+
+              <section class="panel">
+                <h2>Blocked users</h2>
+                <p>These users cannot exchange new friend requests or new direct messages while the block is active.</p>
+                <div class="member-list" data-blocked-users-list></div>
+              </section>
             </div>
           </div>
         </div>

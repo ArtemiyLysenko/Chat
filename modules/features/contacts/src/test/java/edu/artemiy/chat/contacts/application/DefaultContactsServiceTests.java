@@ -16,18 +16,24 @@ import org.junit.jupiter.api.Test;
 import edu.artemiy.chat.contacts.api.ContactsErrorType;
 import edu.artemiy.chat.contacts.api.ContactsException;
 import edu.artemiy.chat.contacts.api.CreateFriendRequestCommand;
+import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmissionOutcome;
+import edu.artemiy.chat.contacts.domain.OrderedContactPair;
 import edu.artemiy.chat.contacts.spi.ContactsPersistencePort;
 import edu.artemiy.chat.contacts.spi.DuplicateFriendshipException;
 import edu.artemiy.chat.contacts.spi.DuplicatePendingFriendRequestException;
+import edu.artemiy.chat.contacts.spi.DuplicateUserBlockException;
 import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRequestRecord;
+import edu.artemiy.chat.contacts.spi.NewUserBlockRecord;
+import edu.artemiy.chat.contacts.spi.StoredBlockedContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredContactUser;
 import edu.artemiy.chat.contacts.spi.StoredFriendContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredFriendship;
 import edu.artemiy.chat.contacts.spi.StoredFriendshipRequest;
 import edu.artemiy.chat.contacts.spi.StoredPendingFriendRequestEntry;
+import edu.artemiy.chat.contacts.spi.StoredUserBlock;
 import edu.artemiy.chat.testing.FixedClock;
 
 class DefaultContactsServiceTests {
@@ -150,7 +156,130 @@ class DefaultContactsServiceTests {
     }
 
     @Test
-    void listsAcceptedAndPendingContactState() {
+    void removesFriendRemovesFriendship() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+
+        service.removeFriend(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+    }
+
+    @Test
+    void blockRemovesFriendshipIfPresent() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+
+        service.blockUser(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+        assertThat(contactsPersistencePort.findUserBlock(captain.id(), scout.id())).isPresent();
+    }
+
+    @Test
+    void blockWithoutExistingFriendshipStillCreatesABlock() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+
+        service.blockUser(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+        assertThat(contactsPersistencePort.findUserBlock(captain.id(), scout.id())).isPresent();
+    }
+
+    @Test
+    void unblockRemovesTheBlockOnly() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addBlock(captain.id(), scout.id(), NOW.minusSeconds(60));
+
+        service.unblockUser(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findUserBlock(captain.id(), scout.id())).isEmpty();
+    }
+
+    @Test
+    void unblockDoesNotRestoreFriendship() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addBlock(captain.id(), scout.id(), NOW.minusSeconds(60));
+
+        service.unblockUser(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+    }
+
+    @Test
+    void canRemoveDeletedFriend() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+        contactsPersistencePort.markDeleted(scout.id());
+
+        service.removeFriend(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+    }
+
+    @Test
+    void canUnblockDeletedUser() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addBlock(captain.id(), scout.id(), NOW.minusSeconds(60));
+        contactsPersistencePort.markDeleted(scout.id());
+
+        service.unblockUser(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findUserBlock(captain.id(), scout.id())).isEmpty();
+    }
+
+    @Test
+    void deniesFriendRequestCreationWhileActorHasBlockedTarget() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addBlock(captain.id(), scout.id(), NOW.minusSeconds(60));
+
+        assertThatThrownBy(() -> service.createFriendRequest(captain.id(), new CreateFriendRequestCommand(scout.id(), null, null)))
+            .isInstanceOfSatisfying(ContactsException.class, exception -> {
+                assertThat(exception.code()).isEqualTo("contacts.friend_request_blocked");
+                assertThat(exception.errorType()).isEqualTo(ContactsErrorType.CONFLICT);
+            });
+    }
+
+    @Test
+    void deniesFriendRequestCreationWhileTargetHasBlockedActor() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addBlock(scout.id(), captain.id(), NOW.minusSeconds(60));
+
+        assertThatThrownBy(() -> service.createFriendRequest(captain.id(), new CreateFriendRequestCommand(scout.id(), null, null)))
+            .isInstanceOfSatisfying(ContactsException.class, exception -> {
+                assertThat(exception.code()).isEqualTo("contacts.friend_request_blocked");
+                assertThat(exception.errorType()).isEqualTo(ContactsErrorType.CONFLICT);
+            });
+    }
+
+    @Test
+    void directMessageEligibilityReflectsFriendshipPlusNoBlockRules() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+
+        assertThat(service.evaluateDirectMessageEligibility(captain.id(), scout.id()))
+            .isEqualTo(DirectMessageEligibility.NOT_FRIENDS);
+
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+        assertThat(service.evaluateDirectMessageEligibility(captain.id(), scout.id()))
+            .isEqualTo(DirectMessageEligibility.ELIGIBLE);
+
+        contactsPersistencePort.addBlock(captain.id(), scout.id(), NOW.minusSeconds(60));
+        assertThat(service.evaluateDirectMessageEligibility(captain.id(), scout.id()))
+            .isEqualTo(DirectMessageEligibility.BLOCKED);
+    }
+
+    @Test
+    void listsAcceptedPendingAndBlockedContactState() {
         StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
         StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
         StoredContactUser pilot = contactsPersistencePort.userByUsername("pilot");
@@ -159,6 +288,8 @@ class DefaultContactsServiceTests {
         contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
         contactsPersistencePort.addPendingRequest(pilot.id(), captain.id(), "Inbound", NOW.minusSeconds(300));
         contactsPersistencePort.addPendingRequest(captain.id(), analyst.id(), "Outbound", NOW.minusSeconds(120));
+        contactsPersistencePort.addBlock(captain.id(), pilot.id(), NOW.minusSeconds(30));
+        contactsPersistencePort.rejectPendingFriendRequestsBetween(captain.id(), pilot.id(), NOW.minusSeconds(30));
 
         var contactsView = service.listContacts(captain.id());
 
@@ -166,15 +297,15 @@ class DefaultContactsServiceTests {
             assertThat(friend.user().username()).isEqualTo("scout");
             assertThat(friend.friendsSince()).isEqualTo(NOW.minusSeconds(600));
         });
-        assertThat(contactsView.inboundPendingRequests()).singleElement().satisfies(request -> {
-            assertThat(request.user().username()).isEqualTo("pilot");
-            assertThat(request.messageText()).isEqualTo("Inbound");
-        });
+        assertThat(contactsView.inboundPendingRequests()).isEmpty();
         assertThat(contactsView.outboundPendingRequests()).singleElement().satisfies(request -> {
             assertThat(request.user().username()).isEqualTo("analyst");
             assertThat(request.messageText()).isEqualTo("Outbound");
         });
-        assertThat(contactsView.blockedUsers()).isEmpty();
+        assertThat(contactsView.blockedUsers()).singleElement().satisfies(blockedUser -> {
+            assertThat(blockedUser.user().username()).isEqualTo("pilot");
+            assertThat(blockedUser.blockedAt()).isEqualTo(NOW.minusSeconds(30));
+        });
     }
 
     private static StoredContactUser user(String username) {
@@ -186,6 +317,12 @@ class DefaultContactsServiceTests {
         private final Map<UUID, StoredContactUser> users = new LinkedHashMap<>();
         private final Map<UUID, StoredFriendshipRequest> friendshipRequests = new LinkedHashMap<>();
         private final Map<UUID, StoredFriendship> friendships = new LinkedHashMap<>();
+        private final Map<UUID, StoredUserBlock> userBlocks = new LinkedHashMap<>();
+
+        @Override
+        public Optional<StoredContactUser> findUserById(UUID userId) {
+            return Optional.ofNullable(users.get(userId));
+        }
 
         @Override
         public Optional<StoredContactUser> findActiveUserById(UUID userId) {
@@ -232,6 +369,14 @@ class DefaultContactsServiceTests {
         }
 
         @Override
+        public Optional<StoredUserBlock> findUserBlock(UUID blockerUserId, UUID blockedUserId) {
+            return userBlocks.values().stream()
+                .filter(block -> block.blockerUserId().equals(blockerUserId))
+                .filter(block -> block.blockedUserId().equals(blockedUserId))
+                .findFirst();
+        }
+
+        @Override
         public StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request) {
             if (findPendingFriendRequest(request.requesterUserId(), request.recipientUserId()).isPresent()) {
                 throw new DuplicatePendingFriendRequestException(null);
@@ -265,6 +410,21 @@ class DefaultContactsServiceTests {
         }
 
         @Override
+        public StoredUserBlock createUserBlock(NewUserBlockRecord block) {
+            if (findUserBlock(block.blockerUserId(), block.blockedUserId()).isPresent()) {
+                throw new DuplicateUserBlockException(null);
+            }
+            StoredUserBlock stored = new StoredUserBlock(
+                block.id(),
+                block.blockerUserId(),
+                block.blockedUserId(),
+                block.createdAt()
+            );
+            userBlocks.put(stored.id(), stored);
+            return stored;
+        }
+
+        @Override
         public void markFriendshipRequestAccepted(UUID requestId, Instant respondedAt) {
             friendshipRequests.computeIfPresent(requestId, (ignored, request) -> new StoredFriendshipRequest(
                 request.id(),
@@ -288,6 +448,40 @@ class DefaultContactsServiceTests {
                 request.createdAt(),
                 respondedAt
             ));
+        }
+
+        @Override
+        public void rejectPendingFriendRequestsBetween(UUID firstUserId, UUID secondUserId, Instant respondedAt) {
+            friendshipRequests.replaceAll((ignored, request) -> {
+                boolean matchesPair = request.status() == FriendshipRequestStatus.PENDING
+                    && ((request.requesterUserId().equals(firstUserId) && request.recipientUserId().equals(secondUserId))
+                    || (request.requesterUserId().equals(secondUserId) && request.recipientUserId().equals(firstUserId)));
+                if (!matchesPair) {
+                    return request;
+                }
+                return new StoredFriendshipRequest(
+                    request.id(),
+                    request.requesterUserId(),
+                    request.recipientUserId(),
+                    request.messageText(),
+                    FriendshipRequestStatus.REJECTED,
+                    request.createdAt(),
+                    respondedAt
+                );
+            });
+        }
+
+        @Override
+        public void deleteFriendship(UUID friendshipId) {
+            friendships.remove(friendshipId);
+        }
+
+        @Override
+        public void deleteUserBlock(UUID blockerUserId, UUID blockedUserId) {
+            userBlocks.entrySet().removeIf(entry ->
+                entry.getValue().blockerUserId().equals(blockerUserId)
+                    && entry.getValue().blockedUserId().equals(blockedUserId)
+            );
         }
 
         @Override
@@ -327,6 +521,23 @@ class DefaultContactsServiceTests {
                 .toList();
         }
 
+        @Override
+        public List<StoredBlockedContactEntry> listBlockedUsers(UUID userId) {
+            return userBlocks.values().stream()
+                .filter(block -> block.blockerUserId().equals(userId))
+                .map(block -> {
+                    StoredContactUser otherUser = users.get(block.blockedUserId());
+                    return new StoredBlockedContactEntry(
+                        otherUser.id(),
+                        otherUser.username(),
+                        otherUser.displayName(),
+                        otherUser.deleted(),
+                        block.createdAt()
+                    );
+                })
+                .toList();
+        }
+
         StoredContactUser userByUsername(String username) {
             return findActiveUserByUsername(username).orElseThrow();
         }
@@ -346,14 +557,20 @@ class DefaultContactsServiceTests {
         }
 
         StoredFriendship addFriendship(UUID firstUserId, UUID secondUserId, Instant createdAt) {
-            OrderedPair pair = OrderedPair.of(firstUserId, secondUserId);
+            OrderedContactPair pair = OrderedContactPair.of(firstUserId, secondUserId);
             StoredFriendship friendship = new StoredFriendship(UUID.randomUUID(), pair.lowUserId(), pair.highUserId(), createdAt);
             friendships.put(friendship.id(), friendship);
             return friendship;
         }
 
+        StoredUserBlock addBlock(UUID blockerUserId, UUID blockedUserId, Instant createdAt) {
+            StoredUserBlock block = new StoredUserBlock(UUID.randomUUID(), blockerUserId, blockedUserId, createdAt);
+            userBlocks.put(block.id(), block);
+            return block;
+        }
+
         Optional<StoredFriendship> findFriendshipForUsers(UUID firstUserId, UUID secondUserId) {
-            OrderedPair pair = OrderedPair.of(firstUserId, secondUserId);
+            OrderedContactPair pair = OrderedContactPair.of(firstUserId, secondUserId);
             return findFriendship(pair.lowUserId(), pair.highUserId());
         }
 
@@ -367,6 +584,15 @@ class DefaultContactsServiceTests {
             users.put(user.id(), user);
         }
 
+        void markDeleted(UUID userId) {
+            users.computeIfPresent(userId, (ignored, user) -> new StoredContactUser(
+                user.id(),
+                user.username(),
+                user.displayName(),
+                true
+            ));
+        }
+
         private StoredPendingFriendRequestEntry toPendingEntry(StoredFriendshipRequest request, UUID otherUserId) {
             StoredContactUser otherUser = users.get(otherUserId);
             return new StoredPendingFriendRequestEntry(
@@ -378,25 +604,6 @@ class DefaultContactsServiceTests {
                 request.messageText(),
                 request.createdAt()
             );
-        }
-
-        private record OrderedPair(UUID lowUserId, UUID highUserId) {
-
-            private static OrderedPair of(UUID firstUserId, UUID secondUserId) {
-                return compareUuid(firstUserId, secondUserId) <= 0
-                    ? new OrderedPair(firstUserId, secondUserId)
-                    : new OrderedPair(secondUserId, firstUserId);
-            }
-
-            private static int compareUuid(UUID firstUserId, UUID secondUserId) {
-                int highBitsComparison = Long.compareUnsigned(
-                    firstUserId.getMostSignificantBits(),
-                    secondUserId.getMostSignificantBits()
-                );
-                return highBitsComparison != 0
-                    ? highBitsComparison
-                    : Long.compareUnsigned(firstUserId.getLeastSignificantBits(), secondUserId.getLeastSignificantBits());
-            }
         }
     }
 }

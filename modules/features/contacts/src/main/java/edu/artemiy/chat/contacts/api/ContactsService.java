@@ -11,4 +11,12 @@ public interface ContactsService {
     void acceptFriendRequest(UUID actorUserId, UUID requestId);
 
     void rejectFriendRequest(UUID actorUserId, UUID requestId);
+
+    void removeFriend(UUID actorUserId, UUID userId);
+
+    void blockUser(UUID actorUserId, UUID userId);
+
+    void unblockUser(UUID actorUserId, UUID userId);
+
+    DirectMessageEligibility evaluateDirectMessageEligibility(UUID actorUserId, UUID userId);
 }

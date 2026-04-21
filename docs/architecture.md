@@ -40,7 +40,7 @@ It builds on ADR 0001 and should be read together with:
 | --- | --- | --- |
 | Identity and sessions | Registration, login, logout, password lifecycle, persistent sessions, active session view and revocation, account deletion policy | PostgreSQL |
 | Presence | Per-tab activity tracking, user online and AFK transitions, low-latency presence fan-out | PostgreSQL plus in-process connection state |
-| Contacts and direct messaging | Friend requests, accepted friendships, user blocks, direct dialog eligibility. Milestone 3.1 currently ships the request lifecycle, accepted-friends list, and dedicated contacts page; blocks and direct dialogs remain later Milestone 3 work. | PostgreSQL |
+| Contacts and direct messaging | Friend requests, accepted friendships, user blocks, and centralized direct-message eligibility. Milestone 3.2 currently ships the request lifecycle, friendship removal, directional blocks, and the dedicated contacts page; direct-dialog identity remains Milestone 3.3 work. | PostgreSQL |
 | Rooms and moderation | Public catalog, private room membership, invitations, roles, bans, room deletion, moderation audit | PostgreSQL |
 | Messaging and history | Message creation, edit, delete, reply links, unread markers, cursor-based history loading | PostgreSQL |
 | Attachments and access control | Upload metadata, binary storage, download authorization, room-access revocation | PostgreSQL plus local filesystem |
@@ -73,7 +73,7 @@ It builds on ADR 0001 and should be read together with:
 2. Room catalog, membership, and moderation
    Public rooms are discoverable and their full details are readable by authenticated users unless banned. Private rooms require invitation for join, and invited users only see the room name and owner before they join. Role changes, bans, removals, and room deletion must update database state consistently, with member removal keeping regular-member removal separate from admin removal plus ban.
 3. Friendship to direct-dialog eligibility
-   Milestone 3.1 lets authenticated users create friend requests by username or user id, auto-accept the opposite-direction pending request, accept or reject inbound requests, and review accepted plus pending state on a dedicated contacts page. Blocking, friendship removal, and direct-dialog creation remain later Milestone 3 work.
+   Milestone 3.2 lets authenticated users create friend requests by username or user id, auto-accept the opposite-direction pending request, accept or reject inbound requests, remove friendships, block or unblock users, and review accepted, pending, and blocked state on a dedicated contacts page. The shared direct-message eligibility rule now depends on active friendship plus no block in either direction. Stable direct-dialog identity and lookup remain Milestone 3.3 work.
 4. Message send, edit, delete, and unread updates
    Writes land in PostgreSQL first, then emit WebSocket events to all still-authorized sessions. Message edits and deletions are represented as state changes rather than row removal in the normal path.
 5. Attachment upload and download authorization

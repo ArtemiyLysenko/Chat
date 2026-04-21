@@ -61,6 +61,7 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         jdbcTemplate.execute(
             """
                 truncate table
+                    user_blocks,
                     moderation_audit_events,
                     room_bans,
                     room_invites,

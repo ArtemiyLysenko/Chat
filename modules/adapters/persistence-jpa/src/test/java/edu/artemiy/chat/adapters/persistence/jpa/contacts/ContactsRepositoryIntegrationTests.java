@@ -21,9 +21,11 @@ import edu.artemiy.chat.adapters.persistence.jpa.PersistenceJpaTestApplication;
 import edu.artemiy.chat.contacts.spi.ContactsPersistencePort;
 import edu.artemiy.chat.contacts.spi.DuplicateFriendshipException;
 import edu.artemiy.chat.contacts.spi.DuplicatePendingFriendRequestException;
+import edu.artemiy.chat.contacts.spi.DuplicateUserBlockException;
 import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRequestRecord;
+import edu.artemiy.chat.contacts.spi.NewUserBlockRecord;
 import edu.artemiy.chat.identity.spi.NewUserRecord;
 import edu.artemiy.chat.identity.spi.UserPersistencePort;
 import edu.artemiy.chat.testing.PostgresIntegrationSupport;
@@ -64,6 +66,7 @@ class ContactsRepositoryIntegrationTests extends PostgresIntegrationSupport {
         jdbcTemplate.execute(
             """
                 truncate table
+                    user_blocks,
                     friendships,
                     friendship_requests,
                     moderation_audit_events,
@@ -113,6 +116,70 @@ class ContactsRepositoryIntegrationTests extends PostgresIntegrationSupport {
             "Second ping",
             NOW.plusSeconds(5)
         ))).isInstanceOf(DuplicatePendingFriendRequestException.class);
+    }
+
+    @Test
+    void enforcesUserBlockUniquenessPerDirection() {
+        UUID captainId = createUser("captain@example.com", "captain");
+        UUID scoutId = createUser("scout@example.com", "scout");
+
+        contactsPersistencePort.createUserBlock(new NewUserBlockRecord(
+            UUID.randomUUID(),
+            captainId,
+            scoutId,
+            NOW
+        ));
+
+        assertThatThrownBy(() -> contactsPersistencePort.createUserBlock(new NewUserBlockRecord(
+            UUID.randomUUID(),
+            captainId,
+            scoutId,
+            NOW.plusSeconds(5)
+        ))).isInstanceOf(DuplicateUserBlockException.class);
+    }
+
+    @Test
+    void persistsAndListsBlocks() {
+        UUID captainId = createUser("captain@example.com", "captain");
+        UUID scoutId = createUser("scout@example.com", "scout");
+
+        var block = contactsPersistencePort.createUserBlock(new NewUserBlockRecord(
+            UUID.randomUUID(),
+            captainId,
+            scoutId,
+            NOW
+        ));
+
+        assertThat(contactsPersistencePort.findUserBlock(captainId, scoutId))
+            .hasValueSatisfying(storedBlock -> {
+                assertThat(storedBlock.id()).isEqualTo(block.id());
+                assertThat(storedBlock.createdAt()).isEqualTo(NOW);
+            });
+        assertThat(contactsPersistencePort.listBlockedUsers(captainId)).singleElement()
+            .satisfies(blockedUser -> {
+                assertThat(blockedUser.otherUserId()).isEqualTo(scoutId);
+                assertThat(blockedUser.otherUsername()).isEqualTo("scout");
+                assertThat(blockedUser.blockedAt()).isEqualTo(NOW);
+            });
+    }
+
+    @Test
+    void deletesFriendshipByIdentifier() {
+        UUID captainId = createUser("captain@example.com", "captain");
+        UUID scoutId = createUser("scout@example.com", "scout");
+        UUID lowUserId = compareUuid(captainId, scoutId) <= 0 ? captainId : scoutId;
+        UUID highUserId = lowUserId.equals(captainId) ? scoutId : captainId;
+
+        var friendship = contactsPersistencePort.createFriendship(new NewFriendshipRecord(
+            UUID.randomUUID(),
+            lowUserId,
+            highUserId,
+            NOW
+        ));
+
+        contactsPersistencePort.deleteFriendship(friendship.id());
+
+        assertThat(contactsPersistencePort.findFriendship(lowUserId, highUserId)).isEmpty();
     }
 
     @Test

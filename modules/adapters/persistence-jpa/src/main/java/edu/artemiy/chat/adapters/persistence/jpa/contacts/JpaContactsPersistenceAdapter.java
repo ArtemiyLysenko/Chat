@@ -12,33 +12,45 @@ import org.springframework.stereotype.Component;
 import edu.artemiy.chat.contacts.spi.ContactsPersistencePort;
 import edu.artemiy.chat.contacts.spi.DuplicateFriendshipException;
 import edu.artemiy.chat.contacts.spi.DuplicatePendingFriendRequestException;
+import edu.artemiy.chat.contacts.spi.DuplicateUserBlockException;
 import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRequestRecord;
+import edu.artemiy.chat.contacts.spi.NewUserBlockRecord;
+import edu.artemiy.chat.contacts.spi.StoredBlockedContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredContactUser;
 import edu.artemiy.chat.contacts.spi.StoredFriendContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredFriendship;
 import edu.artemiy.chat.contacts.spi.StoredFriendshipRequest;
 import edu.artemiy.chat.contacts.spi.StoredPendingFriendRequestEntry;
+import edu.artemiy.chat.contacts.spi.StoredUserBlock;
 
 @Component
 class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
 
     private final FriendshipRequestJpaRepository friendshipRequestJpaRepository;
     private final FriendshipJpaRepository friendshipJpaRepository;
+    private final UserBlockJpaRepository userBlockJpaRepository;
     private final ContactUserReadRepository contactUserReadRepository;
     private final JdbcTemplate jdbcTemplate;
 
     JpaContactsPersistenceAdapter(
         FriendshipRequestJpaRepository friendshipRequestJpaRepository,
         FriendshipJpaRepository friendshipJpaRepository,
+        UserBlockJpaRepository userBlockJpaRepository,
         ContactUserReadRepository contactUserReadRepository,
         JdbcTemplate jdbcTemplate
     ) {
         this.friendshipRequestJpaRepository = friendshipRequestJpaRepository;
         this.friendshipJpaRepository = friendshipJpaRepository;
+        this.userBlockJpaRepository = userBlockJpaRepository;
         this.contactUserReadRepository = contactUserReadRepository;
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @Override
+    public Optional<StoredContactUser> findUserById(UUID userId) {
+        return contactUserReadRepository.findUserById(userId).map(JpaContactsPersistenceAdapter::toStoredUser);
     }
 
     @Override
@@ -97,6 +109,12 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     }
 
     @Override
+    public Optional<StoredUserBlock> findUserBlock(UUID blockerUserId, UUID blockedUserId) {
+        return userBlockJpaRepository.findByBlockerUserIdAndBlockedUserId(blockerUserId, blockedUserId)
+            .map(JpaContactsPersistenceAdapter::toStoredUserBlock);
+    }
+
+    @Override
     public StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request) {
         try {
             return toStoredFriendshipRequest(friendshipRequestJpaRepository.saveAndFlush(new FriendshipRequestEntity(
@@ -136,6 +154,24 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     }
 
     @Override
+    public StoredUserBlock createUserBlock(NewUserBlockRecord block) {
+        try {
+            return toStoredUserBlock(userBlockJpaRepository.saveAndFlush(new UserBlockEntity(
+                block.id(),
+                block.blockerUserId(),
+                block.blockedUserId(),
+                block.createdAt()
+            )));
+        }
+        catch (DataIntegrityViolationException exception) {
+            if (isConstraint(exception, "uq_user_blocks_direction")) {
+                throw new DuplicateUserBlockException(exception);
+            }
+            throw exception;
+        }
+    }
+
+    @Override
     public void markFriendshipRequestAccepted(UUID requestId, java.time.Instant respondedAt) {
         FriendshipRequestEntity entity = friendshipRequestJpaRepository.findById(requestId).orElseThrow();
         entity.markAccepted(respondedAt);
@@ -147,6 +183,21 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
         FriendshipRequestEntity entity = friendshipRequestJpaRepository.findById(requestId).orElseThrow();
         entity.markRejected(respondedAt);
         friendshipRequestJpaRepository.saveAndFlush(entity);
+    }
+
+    @Override
+    public void rejectPendingFriendRequestsBetween(UUID firstUserId, UUID secondUserId, java.time.Instant respondedAt) {
+        friendshipRequestJpaRepository.rejectPendingRequestsBetween(firstUserId, secondUserId, respondedAt);
+    }
+
+    @Override
+    public void deleteFriendship(UUID friendshipId) {
+        friendshipJpaRepository.deleteById(friendshipId);
+    }
+
+    @Override
+    public void deleteUserBlock(UUID blockerUserId, UUID blockedUserId) {
+        userBlockJpaRepository.deleteByBlockerUserIdAndBlockedUserId(blockerUserId, blockedUserId);
     }
 
     @Override
@@ -174,6 +225,19 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     public List<StoredPendingFriendRequestEntry> listOutboundPendingRequests(UUID userId) {
         return friendshipRequestJpaRepository.findOutboundPendingRequests(userId).stream()
             .map(JpaContactsPersistenceAdapter::toPendingEntry)
+            .toList();
+    }
+
+    @Override
+    public List<StoredBlockedContactEntry> listBlockedUsers(UUID userId) {
+        return userBlockJpaRepository.findBlockedContacts(userId).stream()
+            .map(projection -> new StoredBlockedContactEntry(
+                projection.getOtherUserId(),
+                projection.getOtherUsername(),
+                projection.getOtherDisplayName(),
+                projection.getOtherDeletedAt() != null,
+                projection.getBlockedAt()
+            ))
             .toList();
     }
 
@@ -211,6 +275,15 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
             entity.getStatus(),
             entity.getCreatedAt(),
             entity.getRespondedAt()
+        );
+    }
+
+    private static StoredUserBlock toStoredUserBlock(UserBlockEntity entity) {
+        return new StoredUserBlock(
+            entity.getId(),
+            entity.getBlockerUserId(),
+            entity.getBlockedUserId(),
+            entity.getCreatedAt()
         );
     }
 

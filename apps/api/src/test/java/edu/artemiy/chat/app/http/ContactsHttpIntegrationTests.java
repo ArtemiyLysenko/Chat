@@ -2,8 +2,10 @@ package edu.artemiy.chat.app.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
@@ -77,6 +79,7 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
         jdbcTemplate.execute(
             """
                 truncate table
+                    user_blocks,
                     friendships,
                     friendship_requests,
                     moderation_audit_events,
@@ -227,7 +230,85 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
     }
 
     @Test
-    void returnsContactsShapeWithAcceptedAndPendingRelationships() throws Exception {
+    void removeFriendEndpointDeletesAcceptedFriendship() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        JsonNode captainToScout = postJson(
+            "/api/friend-requests",
+            """
+                {"username":"scout"}
+                """,
+            captain,
+            201
+        );
+        postWithoutBody("/api/friend-requests/%s/accept".formatted(captainToScout.path("requestId").asText()), scout, 204);
+
+        deleteWithoutBody("/api/contacts/%s".formatted(scout.userId()), captain, 204);
+
+        assertThat(getJson("/api/contacts", captain).path("friends").size()).isZero();
+        assertThat(getJson("/api/contacts", scout).path("friends").size()).isZero();
+    }
+
+    @Test
+    void blockEndpointRemovesFriendshipAndListsBlockedUserSeparately() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        JsonNode captainToScout = postJson(
+            "/api/friend-requests",
+            """
+                {"username":"scout"}
+                """,
+            captain,
+            201
+        );
+        postWithoutBody("/api/friend-requests/%s/accept".formatted(captainToScout.path("requestId").asText()), scout, 204);
+
+        putWithoutBody("/api/blocks/%s".formatted(scout.userId()), captain, 204);
+
+        JsonNode contacts = getJson("/api/contacts", captain);
+        assertThat(contacts.path("friends").size()).isZero();
+        assertThat(contacts.path("blockedUsers").size()).isEqualTo(1);
+        assertThat(contacts.path("blockedUsers").get(0).path("user").path("username").asText()).isEqualTo("scout");
+    }
+
+    @Test
+    void unblockEndpointRemovesOnlyTheActorBlock() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        putWithoutBody("/api/blocks/%s".formatted(scout.userId()), captain, 204);
+        deleteWithoutBody("/api/blocks/%s".formatted(scout.userId()), captain, 204);
+
+        JsonNode contacts = getJson("/api/contacts", captain);
+        assertThat(contacts.path("blockedUsers").size()).isZero();
+        assertThat(contacts.path("friends").size()).isZero();
+    }
+
+    @Test
+    void deniesFriendRequestCreationWhileBlocked() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        putWithoutBody("/api/blocks/%s".formatted(scout.userId()), captain, 204);
+
+        MockHttpServletResponse blockedResponse = postJsonRaw(
+            "/api/friend-requests",
+            """
+                {"userId":"%s"}
+                """.formatted(captain.userId()),
+            scout.csrfCookie(),
+            scout.sessionCookie(),
+            409
+        ).getResponse();
+
+        JsonNode error = objectMapper.readTree(blockedResponse.getContentAsString());
+        assertThat(error.path("code").asText()).isEqualTo("contacts.friend_request_blocked");
+    }
+
+    @Test
+    void returnsContactsShapeWithAcceptedPendingAndBlockedRelationships() throws Exception {
         AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
         AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
         AuthenticatedClient pilot = registerAndLogin("pilot@example.com", "pilot");
@@ -259,16 +340,17 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
             captain,
             201
         );
+        putWithoutBody("/api/blocks/%s".formatted(pilot.userId()), captain, 204);
 
         JsonNode contacts = getJson("/api/contacts", captain);
 
         assertThat(contacts.path("friends").size()).isEqualTo(1);
         assertThat(contacts.path("friends").get(0).path("user").path("username").asText()).isEqualTo("scout");
-        assertThat(contacts.path("inboundPendingRequests").size()).isEqualTo(1);
-        assertThat(contacts.path("inboundPendingRequests").get(0).path("user").path("username").asText()).isEqualTo("pilot");
+        assertThat(contacts.path("inboundPendingRequests").size()).isZero();
         assertThat(contacts.path("outboundPendingRequests").size()).isEqualTo(1);
         assertThat(contacts.path("outboundPendingRequests").get(0).path("user").path("username").asText()).isEqualTo("analyst");
-        assertThat(contacts.path("blockedUsers").size()).isZero();
+        assertThat(contacts.path("blockedUsers").size()).isEqualTo(1);
+        assertThat(contacts.path("blockedUsers").get(0).path("user").path("username").asText()).isEqualTo("pilot");
     }
 
     private AuthenticatedClient registerAndLogin(String email, String username) throws Exception {
@@ -328,6 +410,28 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
         postJsonRaw(path, null, client.csrfCookie(), client.sessionCookie(), expectedStatus);
     }
 
+    private void putWithoutBody(String path, AuthenticatedClient client, int expectedStatus) throws Exception {
+        requestWithoutBody(path, client, expectedStatus, HttpMethod.PUT);
+    }
+
+    private void deleteWithoutBody(String path, AuthenticatedClient client, int expectedStatus) throws Exception {
+        requestWithoutBody(path, client, expectedStatus, HttpMethod.DELETE);
+    }
+
+    private MvcResult requestWithoutBody(String path, AuthenticatedClient client, int expectedStatus, HttpMethod method) throws Exception {
+        var request = switch (method) {
+            case PUT -> put(path);
+            case DELETE -> delete(path);
+        };
+        return mockMvc.perform(
+            request
+                .contentType(APPLICATION_JSON)
+                .header("X-CSRF-TOKEN", client.csrfCookie().getValue())
+                .cookie(client.csrfCookie(), client.sessionCookie())
+        ).andExpect(status().is(expectedStatus))
+            .andReturn();
+    }
+
     private MvcResult postJsonRaw(String path, String body, Cookie csrfCookie, Cookie sessionCookie, int expectedStatus) throws Exception {
         var request = post(path)
             .contentType(APPLICATION_JSON)
@@ -352,6 +456,11 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
 
     private static Cookie optionalCookie(MockHttpServletResponse response, String name) {
         return response.getCookie(name);
+    }
+
+    private enum HttpMethod {
+        PUT,
+        DELETE
     }
 
     private record AuthenticatedClient(UUID userId, Cookie sessionCookie, Cookie csrfCookie) {

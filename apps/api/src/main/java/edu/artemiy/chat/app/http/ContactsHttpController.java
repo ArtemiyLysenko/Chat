@@ -10,9 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -61,6 +63,24 @@ class ContactsHttpController {
     @PostMapping("/api/friend-requests/{requestId}/reject")
     ResponseEntity<Void> rejectFriendRequest(@PathVariable UUID requestId, Authentication authentication) {
         contactsService.rejectFriendRequest(AuthenticatedHttpUserSupport.userId(authentication), requestId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/api/contacts/{userId}")
+    ResponseEntity<Void> removeFriend(@PathVariable UUID userId, Authentication authentication) {
+        contactsService.removeFriend(AuthenticatedHttpUserSupport.userId(authentication), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/api/blocks/{userId}")
+    ResponseEntity<Void> blockUser(@PathVariable UUID userId, Authentication authentication) {
+        contactsService.blockUser(AuthenticatedHttpUserSupport.userId(authentication), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/api/blocks/{userId}")
+    ResponseEntity<Void> unblockUser(@PathVariable UUID userId, Authentication authentication) {
+        contactsService.unblockUser(AuthenticatedHttpUserSupport.userId(authentication), userId);
         return ResponseEntity.noContent().build();
     }
 

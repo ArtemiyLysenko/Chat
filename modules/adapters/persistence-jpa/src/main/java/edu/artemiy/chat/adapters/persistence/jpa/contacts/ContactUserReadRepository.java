@@ -19,6 +19,20 @@ interface ContactUserReadRepository extends Repository<FriendshipRequestEntity, 
                 deleted_at as deletedAt
             from users
             where id = :userId
+            """,
+        nativeQuery = true
+    )
+    Optional<ContactUserProjection> findUserById(@Param("userId") UUID userId);
+
+    @Query(
+        value = """
+            select
+                id as userId,
+                username as username,
+                display_name as displayName,
+                deleted_at as deletedAt
+            from users
+            where id = :userId
               and deleted_at is null
             """,
         nativeQuery = true

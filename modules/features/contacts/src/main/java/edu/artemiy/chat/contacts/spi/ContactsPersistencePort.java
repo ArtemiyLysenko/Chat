@@ -7,6 +7,8 @@ import java.util.UUID;
 
 public interface ContactsPersistencePort {
 
+    Optional<StoredContactUser> findUserById(UUID userId);
+
     Optional<StoredContactUser> findActiveUserById(UUID userId);
 
     Optional<StoredContactUser> findActiveUserByUsername(String username);
@@ -21,17 +23,29 @@ public interface ContactsPersistencePort {
 
     Optional<StoredFriendshipRequest> findPendingFriendRequestForRecipient(UUID requestId, UUID recipientUserId);
 
+    Optional<StoredUserBlock> findUserBlock(UUID blockerUserId, UUID blockedUserId);
+
     StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request);
 
     StoredFriendship createFriendship(NewFriendshipRecord friendship);
 
+    StoredUserBlock createUserBlock(NewUserBlockRecord block);
+
     void markFriendshipRequestAccepted(UUID requestId, Instant respondedAt);
 
     void markFriendshipRequestRejected(UUID requestId, Instant respondedAt);
+
+    void rejectPendingFriendRequestsBetween(UUID firstUserId, UUID secondUserId, Instant respondedAt);
+
+    void deleteFriendship(UUID friendshipId);
+
+    void deleteUserBlock(UUID blockerUserId, UUID blockedUserId);
 
     List<StoredFriendContactEntry> listFriends(UUID userId);
 
     List<StoredPendingFriendRequestEntry> listInboundPendingRequests(UUID userId);
 
     List<StoredPendingFriendRequestEntry> listOutboundPendingRequests(UUID userId);
+
+    List<StoredBlockedContactEntry> listBlockedUsers(UUID userId);
 }

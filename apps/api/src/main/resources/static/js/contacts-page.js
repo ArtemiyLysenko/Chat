@@ -9,6 +9,7 @@ const contactsMessage = document.querySelector("[data-contacts-message]");
 const friendsList = document.querySelector("[data-friends-list]");
 const inboundRequestsList = document.querySelector("[data-inbound-requests-list]");
 const outboundRequestsList = document.querySelector("[data-outbound-requests-list]");
+const blockedUsersList = document.querySelector("[data-blocked-users-list]");
 
 const state = {
   contacts: {
@@ -49,6 +50,16 @@ const actionButton = (label, kind = "primary") => {
 
 const userLabel = (user) => `${user.displayName} (@${user.username})`;
 
+const performContactsAction = async (request, successMessage) => {
+  try {
+    await request();
+    writeMessage(contactsMessage, "success", successMessage);
+    await refreshContacts({ preserveMessage: true });
+  } catch (error) {
+    writeMessage(contactsMessage, "error", error.message);
+  }
+};
+
 const contactCard = (title, details, actions = []) => {
   const article = document.createElement("article");
   article.className = "contact-card";
@@ -77,21 +88,29 @@ const renderFriends = () => {
   }
 
   for (const friend of state.contacts.friends) {
-    friendsList.append(contactCard(userLabel(friend.user), [`Friends since ${formatDate(friend.friendsSince)}`]));
-  }
-};
+    const removeFriendButton = actionButton("Remove friend", "secondary");
+    removeFriendButton.addEventListener("click", async () => {
+      await performContactsAction(
+        () => jsonRequest(`/api/contacts/${friend.user.id}`, { method: "DELETE" }),
+        `Removed ${friend.user.displayName} from accepted friends.`
+      );
+    });
 
-const handleInboundAction = async (requestId, action) => {
-  try {
-    await jsonRequest(`/api/friend-requests/${requestId}/${action}`, { method: "POST" });
-    writeMessage(
-      contactsMessage,
-      "success",
-      action === "accept" ? "Friend request accepted." : "Friend request rejected."
+    const blockButton = actionButton("Block", "danger");
+    blockButton.addEventListener("click", async () => {
+      await performContactsAction(
+        () => jsonRequest(`/api/blocks/${friend.user.id}`, { method: "PUT" }),
+        `Blocked ${friend.user.displayName}.`
+      );
+    });
+
+    friendsList.append(
+      contactCard(
+        userLabel(friend.user),
+        [`Friends since ${formatDate(friend.friendsSince)}`],
+        [removeFriendButton, blockButton]
+      )
     );
-    await refreshContacts({ preserveMessage: true });
-  } catch (error) {
-    writeMessage(contactsMessage, "error", error.message);
   }
 };
 
@@ -105,12 +124,26 @@ const renderInbound = () => {
   for (const request of state.contacts.inboundPendingRequests) {
     const acceptButton = actionButton("Accept");
     acceptButton.addEventListener("click", async () => {
-      await handleInboundAction(request.requestId, "accept");
+      await performContactsAction(
+        () => jsonRequest(`/api/friend-requests/${request.requestId}/accept`, { method: "POST" }),
+        "Friend request accepted."
+      );
     });
 
     const rejectButton = actionButton("Reject", "secondary");
     rejectButton.addEventListener("click", async () => {
-      await handleInboundAction(request.requestId, "reject");
+      await performContactsAction(
+        () => jsonRequest(`/api/friend-requests/${request.requestId}/reject`, { method: "POST" }),
+        "Friend request rejected."
+      );
+    });
+
+    const blockButton = actionButton("Block", "danger");
+    blockButton.addEventListener("click", async () => {
+      await performContactsAction(
+        () => jsonRequest(`/api/blocks/${request.user.id}`, { method: "PUT" }),
+        `Blocked ${request.user.displayName}.`
+      );
     });
 
     inboundRequestsList.append(
@@ -120,7 +153,7 @@ const renderInbound = () => {
           request.messageText ? `Message: ${request.messageText}` : "No message attached.",
           `Requested ${formatDate(request.createdAt)}`,
         ],
-        [acceptButton, rejectButton]
+        [acceptButton, rejectButton, blockButton]
       )
     );
   }
@@ -134,11 +167,49 @@ const renderOutbound = () => {
   }
 
   for (const request of state.contacts.outboundPendingRequests) {
+    const blockButton = actionButton("Block", "danger");
+    blockButton.addEventListener("click", async () => {
+      await performContactsAction(
+        () => jsonRequest(`/api/blocks/${request.user.id}`, { method: "PUT" }),
+        `Blocked ${request.user.displayName}.`
+      );
+    });
+
     outboundRequestsList.append(
-      contactCard(userLabel(request.user), [
-        request.messageText ? `Message: ${request.messageText}` : "No message attached.",
-        `Sent ${formatDate(request.createdAt)}`,
-      ])
+      contactCard(
+        userLabel(request.user),
+        [
+          request.messageText ? `Message: ${request.messageText}` : "No message attached.",
+          `Sent ${formatDate(request.createdAt)}`,
+        ],
+        [blockButton]
+      )
+    );
+  }
+};
+
+const renderBlockedUsers = () => {
+  blockedUsersList.replaceChildren();
+  if (state.contacts.blockedUsers.length === 0) {
+    blockedUsersList.append(mutedBlock("No blocked users."));
+    return;
+  }
+
+  for (const blockedUser of state.contacts.blockedUsers) {
+    const unblockButton = actionButton("Unblock", "secondary");
+    unblockButton.addEventListener("click", async () => {
+      await performContactsAction(
+        () => jsonRequest(`/api/blocks/${blockedUser.user.id}`, { method: "DELETE" }),
+        `Unblocked ${blockedUser.user.displayName}.`
+      );
+    });
+
+    blockedUsersList.append(
+      contactCard(
+        userLabel(blockedUser.user),
+        [`Blocked ${formatDate(blockedUser.blockedAt)}`],
+        [unblockButton]
+      )
     );
   }
 };
@@ -147,6 +218,7 @@ const render = () => {
   renderFriends();
   renderInbound();
   renderOutbound();
+  renderBlockedUsers();
 };
 
 const refreshContacts = async ({ preserveMessage = false } = {}) => {

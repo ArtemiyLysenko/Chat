@@ -76,19 +76,19 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 ### Contacts And Direct Messaging
 
 Milestone 3 is being delivered in slices.
-Milestone 3.1 currently ships the contacts list plus friend-request create, accept, and reject flows.
-Remove-friend, block, unblock, and direct-dialog endpoints remain reserved for later Milestone 3 slices and are not yet implemented.
+Milestone 3.2 currently ships the contacts list plus friend-request create, accept, reject, remove-friend, and block or unblock flows.
+Direct-dialog ensure or lookup remains reserved for Milestone 3.3 and is not yet implemented.
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/contacts` | List friends, pending requests, and block state | Milestone 3.1 returns `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and `blockedUsers` (currently empty for forward compatibility) |
-| `POST` | `/api/friend-requests` | Create friend request by username or user id | Milestone 3.1 requires exactly one of `userId` or `username`, supports optional `messageText`, and auto-accepts the opposite-direction pending request when one already exists |
-| `POST` | `/api/friend-requests/{requestId}/accept` | Accept friend request | Milestone 3.1 recipient-only action that creates the friendship relation |
-| `POST` | `/api/friend-requests/{requestId}/reject` | Reject friend request | Milestone 3.1 recipient-only action that marks the request rejected and keeps no direct-dialog eligibility |
-| `DELETE` | `/api/contacts/{userId}` | Remove a friend | Reserved for a later Milestone 3 slice; not implemented in Milestone 3.1 |
-| `PUT` | `/api/blocks/{userId}` | Block a user | Reserved for a later Milestone 3 slice; not implemented in Milestone 3.1 |
-| `DELETE` | `/api/blocks/{userId}` | Remove a block | Reserved for a later Milestone 3 slice; not implemented in Milestone 3.1 |
-| `POST` | `/api/direct-dialogs/{userId}` | Ensure or fetch the direct dialog with a friend | Reserved for a later Milestone 3 slice; not implemented in Milestone 3.1 |
+| `GET` | `/api/contacts` | List friends, pending requests, and block state | Milestone 3.2 returns `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and a populated `blockedUsers` section when the caller has active blocks |
+| `POST` | `/api/friend-requests` | Create friend request by username or user id | Milestone 3.2 requires exactly one of `userId` or `username`, supports optional `messageText`, auto-accepts the opposite-direction pending request when one already exists, and denies new requests while either user has blocked the other |
+| `POST` | `/api/friend-requests/{requestId}/accept` | Accept friend request | Milestone 3.2 recipient-only action that creates the friendship relation |
+| `POST` | `/api/friend-requests/{requestId}/reject` | Reject friend request | Milestone 3.2 recipient-only action that marks the request rejected and keeps no direct-dialog eligibility |
+| `DELETE` | `/api/contacts/{userId}` | Remove a friend | Milestone 3.2 removes the active friendship only; it does not create a block and does not create a direct dialog |
+| `PUT` | `/api/blocks/{userId}` | Block a user | Milestone 3.2 rejects self-blocks, removes any active friendship immediately, retires any pending friend request between the pair, and makes the pair ineligible for new direct messages while the block is active |
+| `DELETE` | `/api/blocks/{userId}` | Remove a block | Milestone 3.2 removes only the caller's directional block; it does not restore friendship automatically |
+| `POST` | `/api/direct-dialogs/{userId}` | Ensure or fetch the direct dialog with a friend | Reserved for Milestone 3.3; not implemented in Milestone 3.2 |
 
 ### Messaging, History, And Read State
 
