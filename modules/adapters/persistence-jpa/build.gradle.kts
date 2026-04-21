@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":modules:features:contacts"))
     implementation(project(":modules:features:messaging"))
     implementation(project(":modules:features:attachments"))
+    implementation(project(":modules:features:presence"))
 
     runtimeOnly(libs.postgresql)
 
