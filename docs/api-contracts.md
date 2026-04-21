@@ -111,6 +111,8 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `GET` | `/api/admin/jabber/federation/peers` | Show current federation peer status | Admin-only, includes peer health and last-seen state |
 | `GET` | `/api/admin/jabber/federation/traffic` | Show federation traffic statistics | Admin-only, supports the required federation traffic info screen |
 
+- Temporary authorization baseline through Milestone 1: `/api/admin/**` is denied for all authenticated users until the real admin authorization model is implemented.
+
 ## XMPP Interoperability Contract
 
 - The XMPP client-facing contract is the chosen standards-compliant Jabber/XMPP library and support level, not a custom HTTP API.

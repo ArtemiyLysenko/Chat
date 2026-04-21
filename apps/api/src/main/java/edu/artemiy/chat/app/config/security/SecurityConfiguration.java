@@ -74,6 +74,7 @@ class SecurityConfiguration {
                     "/api/auth/password/reset-requests",
                     "/api/auth/password/reset"
                 ).permitAll()
+                .requestMatchers("/api/admin/**").denyAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )

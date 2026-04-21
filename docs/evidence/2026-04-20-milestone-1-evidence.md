@@ -32,7 +32,7 @@ Milestone 1 identity and session foundation:
 - `docs/architecture.md`
 - `docs/persistence-model.md`
 - `docs/bet-register.md`
-- `docs/evidence/2026-04-20-b3-xmpp-path-spike.md`
+- `docs/evidence/2026-04-21-b3-xmpp-path-spike.md`
 
 ## Verification Commands
 
@@ -79,14 +79,14 @@ Milestone 1 identity and session foundation:
 ## Verification Findings And Fixes
 - Spring Data JPA repository scanning in the app context was anchored to the bootstrap package instead of the persistence adapter package.
   Fix: added explicit JPA entity and repository configuration in `modules/adapters/persistence-jpa`.
-- Testcontainers startup inherited a bad Docker socket choice from local user properties.
-  Fix: test support and Gradle test conventions now prefer `~/.docker/run/docker.sock` and ignore stale user-level Testcontainers overrides.
+- Testcontainers startup became harder to reason about because Docker socket selection lived in both Gradle test conventions and runtime test code.
+  Fix: Docker/Testcontainers socket selection is now centralized in Gradle test conventions, and the shared PostgreSQL test support no longer mutates Docker system properties at runtime.
 - Spring Security 7 defaulted to XOR-masked CSRF request handling, which conflicted with the chosen `XSRF-TOKEN` cookie plus `X-CSRF-TOKEN` header browser flow.
   Fix: configured a plain `CsrfTokenRequestAttributeHandler` so static JS can send the raw cookie token as the header value.
 
 ## Decisions Captured
 - B4 is resolved by executable implementation: account deletion tombstones the `users` row, revokes sessions, clears credentials, and invokes `AccountDeletionImpactPort`.
-- B3 remains active but narrowed by `2026-04-20-b3-xmpp-path-spike.md`, which recommends Openfire as the Milestone 7 companion XMPP service.
+- B3 remains active but narrowed by `2026-04-21-b3-xmpp-path-spike.md`, which keeps Milestone 7 inside ADR 0005 and rejects companion XMPP servers unless a new ADR is accepted.
 
 ## Remaining Risk
 - None from Milestone 1 host-port reachability. The earlier localhost failure was specific to the sandboxed agent environment and was cleared by a fresh outside-sandbox host probe.

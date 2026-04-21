@@ -10,37 +10,37 @@ import java.sql.Statement;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 
-class FlywayMigrationBootstrapTests {
+import edu.artemiy.chat.testing.PostgresIntegrationSupport;
+
+class FlywayMigrationBootstrapTests extends PostgresIntegrationSupport {
 
     @Test
     void migratesIdentitySchemaFromEmptyPostgresDatabase() throws Exception {
-        try (var postgres = new org.testcontainers.containers.PostgreSQLContainer<>("postgres:16-alpine")) {
-            postgres.start();
+        var database = createIsolatedDatabase("flyway_bootstrap");
 
-            Flyway flyway = Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
-                .locations("classpath:db/migration")
-                .load();
+        Flyway flyway = Flyway.configure()
+            .dataSource(database.jdbcUrl(), database.username(), database.password())
+            .locations("classpath:db/migration")
+            .load();
 
-            flyway.migrate();
+        flyway.migrate();
 
-            try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
-                 Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery("""
-                     select table_name
-                     from information_schema.tables
-                     where table_schema = 'public'
-                       and table_name in ('users', 'password_reset_tokens', 'user_sessions')
-                     order by table_name
-                     """)) {
-                assertThat(resultSet.next()).isTrue();
-                assertThat(resultSet.getString("table_name")).isEqualTo("password_reset_tokens");
-                assertThat(resultSet.next()).isTrue();
-                assertThat(resultSet.getString("table_name")).isEqualTo("user_sessions");
-                assertThat(resultSet.next()).isTrue();
-                assertThat(resultSet.getString("table_name")).isEqualTo("users");
-                assertThat(resultSet.next()).isFalse();
-            }
+        try (Connection connection = DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("""
+                 select table_name
+                 from information_schema.tables
+                 where table_schema = 'public'
+                   and table_name in ('users', 'password_reset_tokens', 'user_sessions')
+                 order by table_name
+                 """)) {
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getString("table_name")).isEqualTo("password_reset_tokens");
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getString("table_name")).isEqualTo("user_sessions");
+            assertThat(resultSet.next()).isTrue();
+            assertThat(resultSet.getString("table_name")).isEqualTo("users");
+            assertThat(resultSet.next()).isFalse();
         }
     }
 }

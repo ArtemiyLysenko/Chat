@@ -160,6 +160,16 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         assertThat(sessions.body()).contains("\"userAgent\":\"TestBrowser/1.0\"");
     }
 
+    @Test
+    void deniesJabberAdminEndpointsToAuthenticatedNonAdminUsers() throws Exception {
+        BrowserSession browser = new BrowserSession();
+
+        registerAndLogin(browser, "captain@example.com", "captain");
+
+        HttpResponse<String> deniedConnections = browser.get("/api/admin/jabber/connections");
+        assertThat(deniedConnections.statusCode()).isEqualTo(403);
+    }
+
     private void registerAndLogin(BrowserSession browser, String email, String username) throws Exception {
         browser.get("/register");
         browser.postJson(

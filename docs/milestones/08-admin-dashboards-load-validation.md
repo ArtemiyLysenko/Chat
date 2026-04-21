@@ -23,6 +23,7 @@ It replaces the placeholder admin endpoints with real data and produces the stro
    - Keep the existing admin feature and federation feature separation intact.
 2. Authorization
    - Add explicit admin authorization for the Jabber dashboard endpoints and UI routes.
+   - Replace the Milestone 1 temporary `denyAll` rule on `/api/admin/**` with the real admin authorization model.
    - Reuse the existing security stack from Milestone 1.
 3. Admin UI
    - Implement concise classic-web admin screens inside the Spring Boot-served UI.

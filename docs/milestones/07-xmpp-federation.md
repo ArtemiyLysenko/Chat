@@ -2,7 +2,8 @@
 
 ## Summary
 This milestone delivers the mandatory XMPP and federation scope for the first supported protocol slice: one-to-one chat plus basic presence.
-It must follow the B3 decision artifact produced during Milestone 1 and must not reopen the library choice unless that earlier evidence is shown to be invalid.
+It must follow the reconciled B3 decision artifact: keep one Spring Boot application per node and implement XMPP as an in-process adapter over shared application services.
+Do not introduce a companion XMPP server unless a new ADR explicitly changes ADR 0005.
 
 ## Deliverables
 - XMPP client authentication against the governed account model.
@@ -17,12 +18,13 @@ It must follow the B3 decision artifact produced during Milestone 1 and must not
 
 ## Implementation Plan
 1. Use the Milestone 1 B3 decision artifact
-   - Implement the exact XMPP approach selected there.
-   - If the B3 evidence is invalidated, record a new ADR or evidence note before proceeding with implementation.
+   - Keep the accepted modular-monolith shape: one Spring Boot deployable per server node, with XMPP implemented in `modules/adapters/xmpp`.
+   - If an external XMPP server becomes necessary, record a new ADR before proceeding.
 2. XMPP adapter
    - Implement the XMPP translation layer in `modules/adapters/xmpp`.
    - Translate inbound XMPP auth, presence, and one-to-one messages into the existing identity, contacts, messaging, and presence feature services.
    - Translate internal chat events back into the supported XMPP output shape.
+   - Use Java XMPP client libraries only where they help with interoperability tests, federation probes, or outbound connector code; keep business rules in the Spring Boot application.
 3. Database and persistence adapter
    - Add Flyway migrations for `xmpp_client_sessions`, `federation_peers`, and `federation_traffic_samples`.
    - Implement persistence support in `modules/adapters/persistence-jpa/federation`.
@@ -44,11 +46,12 @@ It must follow the B3 decision artifact produced during Milestone 1 and must not
 - The XMPP support level and supported stanza set must be documented by the B3 artifact and echoed in the evidence for this milestone.
 - XMPP messages map only to direct dialogs in v1.
 - Federation must preserve the same direct-message eligibility rules as local HTTP sends.
+- Under the current architecture, there is no companion Openfire or Tigase service in the normal node topology.
 
 ## Tests And Evidence
 - Automated
   - integration tests for XMPP login success and failure
-  - integration tests for one-to-one XMPP message exchange against the chosen adapter path
+  - integration tests for one-to-one XMPP message exchange against the in-process adapter path
   - integration tests for blocked or ineligible direct-message denial over XMPP
   - two-node federation tests for A-to-B and B-to-A direct-message delivery
 - Manual

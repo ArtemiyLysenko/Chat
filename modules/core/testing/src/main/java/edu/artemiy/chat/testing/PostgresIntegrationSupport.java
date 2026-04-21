@@ -1,17 +1,23 @@
 package edu.artemiy.chat.testing;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Locale;
+import java.util.UUID;
 
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public abstract class PostgresIntegrationSupport {
 
-    protected static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final DockerImageName POSTGRES_IMAGE = DockerImageName.parse("postgres:16-alpine");
+
+    protected static final PostgreSQLContainer<?> POSTGRES = newPostgresContainer();
 
     static {
-        configureDockerDesktopOverrides();
         POSTGRES.start();
     }
 
@@ -21,35 +27,38 @@ public abstract class PostgresIntegrationSupport {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    private static void configureDockerDesktopOverrides() {
-        if (System.getProperty("docker.host") != null) {
-            return;
+    public static PostgreSQLContainer<?> newPostgresContainer() {
+        return new PostgreSQLContainer<>(POSTGRES_IMAGE);
+    }
+
+    protected static PostgresDatabase createIsolatedDatabase(String namePrefix) {
+        String sanitizedPrefix = namePrefix.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
+        String databaseName = sanitizedPrefix + "_" + UUID.randomUUID().toString().replace("-", "");
+
+        try (Connection connection = DriverManager.getConnection(adminJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             Statement statement = connection.createStatement()) {
+            statement.execute("create database " + databaseName);
+        }
+        catch (SQLException exception) {
+            throw new IllegalStateException("Failed to create isolated PostgreSQL database " + databaseName, exception);
         }
 
-        var rawSocket = Path.of(
-            System.getProperty("user.home"),
-            "Library",
-            "Containers",
-            "com.docker.docker",
-            "Data",
-            "docker.raw.sock"
-        );
-        var userSocket = Path.of(System.getProperty("user.home"), ".docker", "run", "docker.sock");
+        return new PostgresDatabase(jdbcUrlForDatabase(databaseName), POSTGRES.getUsername(), POSTGRES.getPassword());
+    }
 
-        if (!Files.exists(userSocket) && !Files.exists(rawSocket)) {
-            return;
-        }
+    private static String adminJdbcUrl() {
+        return jdbcUrlForDatabase("postgres");
+    }
 
-        var socket = Files.exists(userSocket) ? userSocket : rawSocket;
-        System.setProperty("docker.host", "unix://" + socket.toAbsolutePath());
-        System.setProperty("dockerconfig.source", "autoIgnoringUserProperties");
-        System.setProperty(
-            "docker.client.strategy",
-            "org.testcontainers.dockerclient.EnvironmentAndSystemPropertyClientProviderStrategy"
-        );
+    private static String jdbcUrlForDatabase(String databaseName) {
+        String jdbcUrl = POSTGRES.getJdbcUrl();
+        int querySeparator = jdbcUrl.indexOf('?');
+        String baseUrl = querySeparator >= 0 ? jdbcUrl.substring(0, querySeparator) : jdbcUrl;
+        String querySuffix = querySeparator >= 0 ? jdbcUrl.substring(querySeparator) : "";
+        int databaseSeparator = baseUrl.lastIndexOf('/');
+        return baseUrl.substring(0, databaseSeparator + 1) + databaseName + querySuffix;
+    }
 
-        if (System.getProperty("docker.api.version") == null) {
-            System.setProperty("docker.api.version", "1.41");
-        }
+    protected record PostgresDatabase(String jdbcUrl, String username, String password) {
     }
 }
