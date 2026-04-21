@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,11 +18,13 @@ import edu.artemiy.chat.contacts.api.DirectDialogMessagingAccessStatus;
 import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
 import edu.artemiy.chat.core.kernel.ClockPort;
 import edu.artemiy.chat.messaging.api.AdvanceReadMarkerCommand;
+import edu.artemiy.chat.messaging.api.ChatMessageEvent;
 import edu.artemiy.chat.messaging.api.ChatUnreadCount;
 import edu.artemiy.chat.messaging.api.ChatMessage;
 import edu.artemiy.chat.messaging.api.ChatTargetRef;
 import edu.artemiy.chat.messaging.api.EditMessageCommand;
 import edu.artemiy.chat.messaging.api.MessageAuthor;
+import edu.artemiy.chat.messaging.api.MessageEventType;
 import edu.artemiy.chat.messaging.api.MessageHistoryPage;
 import edu.artemiy.chat.messaging.api.MessageReplyTarget;
 import edu.artemiy.chat.messaging.api.MessageState;
@@ -31,6 +34,7 @@ import edu.artemiy.chat.messaging.api.MessagingService;
 import edu.artemiy.chat.messaging.api.ReadMessageHistoryQuery;
 import edu.artemiy.chat.messaging.api.SendMessageCommand;
 import edu.artemiy.chat.messaging.api.UnreadMarker;
+import edu.artemiy.chat.messaging.api.UnreadMarkerUpdatedEvent;
 import edu.artemiy.chat.messaging.domain.MessageBodyRules;
 import edu.artemiy.chat.messaging.spi.MessagingPersistencePort;
 import edu.artemiy.chat.messaging.spi.NewMessageRecord;
@@ -50,19 +54,22 @@ public class DefaultMessagingService implements MessagingService {
     private final RoomMessagingAccessQuery roomMessagingAccessQuery;
     private final DirectDialogMessagingAccessQuery directDialogMessagingAccessQuery;
     private final ContactsService contactsService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public DefaultMessagingService(
         ClockPort clockPort,
         MessagingPersistencePort messagingPersistencePort,
         RoomMessagingAccessQuery roomMessagingAccessQuery,
         DirectDialogMessagingAccessQuery directDialogMessagingAccessQuery,
-        ContactsService contactsService
+        ContactsService contactsService,
+        ApplicationEventPublisher applicationEventPublisher
     ) {
         this.clockPort = clockPort;
         this.messagingPersistencePort = messagingPersistencePort;
         this.roomMessagingAccessQuery = roomMessagingAccessQuery;
         this.directDialogMessagingAccessQuery = directDialogMessagingAccessQuery;
         this.contactsService = contactsService;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
@@ -80,7 +87,7 @@ public class DefaultMessagingService implements MessagingService {
                 "Reply targets must reference a message in the selected chat."
             );
 
-        StoredMessage storedMessage = messagingPersistencePort.createMessage(new NewMessageRecord(
+        ChatMessage createdMessage = toChatMessage(messagingPersistencePort.createMessage(new NewMessageRecord(
             UUID.randomUUID(),
             chat,
             actorUserId,
@@ -88,8 +95,14 @@ public class DefaultMessagingService implements MessagingService {
             bodyText,
             MessageState.ACTIVE,
             clockPort.now()
+        )));
+        applicationEventPublisher.publishEvent(new ChatMessageEvent(
+            actorUserId,
+            MessageEventType.CREATED,
+            createdMessage,
+            createdMessage.createdAt()
         ));
-        return toChatMessage(storedMessage);
+        return createdMessage;
     }
 
     @Override
@@ -106,7 +119,14 @@ public class DefaultMessagingService implements MessagingService {
                 MessagingErrorType.CONFLICT
             );
         }
-        return toChatMessage(messagingPersistencePort.updateMessageBody(storedMessage.id(), bodyText, clockPort.now()));
+        ChatMessage updatedMessage = toChatMessage(messagingPersistencePort.updateMessageBody(storedMessage.id(), bodyText, clockPort.now()));
+        applicationEventPublisher.publishEvent(new ChatMessageEvent(
+            actorUserId,
+            MessageEventType.UPDATED,
+            updatedMessage,
+            updatedMessage.editedAt()
+        ));
+        return updatedMessage;
     }
 
     @Override
@@ -118,7 +138,14 @@ public class DefaultMessagingService implements MessagingService {
         if (storedMessage.state() == MessageState.DELETED) {
             return toChatMessage(storedMessage);
         }
-        return toChatMessage(messagingPersistencePort.markMessageDeleted(storedMessage.id(), clockPort.now()));
+        ChatMessage deletedMessage = toChatMessage(messagingPersistencePort.markMessageDeleted(storedMessage.id(), clockPort.now()));
+        applicationEventPublisher.publishEvent(new ChatMessageEvent(
+            actorUserId,
+            MessageEventType.DELETED,
+            deletedMessage,
+            clockPort.now()
+        ));
+        return deletedMessage;
     }
 
     @Override
@@ -173,7 +200,14 @@ public class DefaultMessagingService implements MessagingService {
             targetMessage.id(),
             clockPort.now()
         );
-        return toUnreadMarker(savedMarker);
+        UnreadMarker unreadMarker = toUnreadMarker(savedMarker);
+        applicationEventPublisher.publishEvent(new UnreadMarkerUpdatedEvent(
+            actorUserId,
+            unreadMarker.chat(),
+            unreadMarker.lastReadMessageId(),
+            unreadMarker.updatedAt()
+        ));
+        return unreadMarker;
     }
 
     @Override

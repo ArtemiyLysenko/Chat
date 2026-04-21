@@ -31,6 +31,29 @@ interface UserSessionJpaRepository extends JpaRepository<UserSessionEntity, UUID
         """)
     List<UserSessionEntity> findActiveByUserId(@Param("userId") UUID userId, @Param("now") Instant now);
 
+    @Query("""
+        select session.id
+        from UserSessionEntity session
+        where session.userId = :userId
+          and session.revokedAt is null
+          and session.expiresAt > :now
+        """)
+    List<UUID> findActiveIdsByUserId(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    @Query("""
+        select session.id
+        from UserSessionEntity session
+        where session.userId = :userId
+          and session.id <> :currentSessionId
+          and session.revokedAt is null
+          and session.expiresAt > :now
+        """)
+    List<UUID> findActiveIdsByUserIdExcluding(
+        @Param("userId") UUID userId,
+        @Param("currentSessionId") UUID currentSessionId,
+        @Param("now") Instant now
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update UserSessionEntity session

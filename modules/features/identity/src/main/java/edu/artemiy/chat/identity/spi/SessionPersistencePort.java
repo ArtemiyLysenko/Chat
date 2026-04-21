@@ -17,7 +17,7 @@ public interface SessionPersistencePort {
 
     boolean revokeSession(UUID userId, UUID sessionId, Instant revokedAt);
 
-    void revokeAllSessions(UUID userId, Instant revokedAt);
+    List<UUID> revokeAllSessions(UUID userId, Instant revokedAt);
 
-    void revokeAllOtherSessions(UUID userId, UUID currentSessionId, Instant revokedAt);
+    List<UUID> revokeAllOtherSessions(UUID userId, UUID currentSessionId, Instant revokedAt);
 }

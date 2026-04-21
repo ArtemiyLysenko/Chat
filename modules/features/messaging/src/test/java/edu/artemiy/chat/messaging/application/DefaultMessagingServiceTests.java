@@ -74,7 +74,9 @@ class DefaultMessagingServiceTests {
             messagingPersistencePort,
             roomMessagingAccessQuery,
             directDialogMessagingAccessQuery,
-            contactsService
+            contactsService,
+            event -> {
+            }
         );
 
         messagingPersistencePort.addAuthor(new StoredMessageAuthor(CAPTAIN_ID, "captain", "Captain", false));

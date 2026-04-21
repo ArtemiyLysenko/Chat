@@ -198,8 +198,8 @@ Milestone 4.2 response shapes:
 
 ## WebSocket Contract
 
-The contract below remains planned Milestone 4.3 work.
-`/ws` is not implemented in Milestone 4.2.
+Milestone 4.3 implements the authenticated backend `/ws` channel.
+Milestone 4.4 later wires the room and direct-dialog browser UI to these events and adds reconnect behavior.
 
 - Path: `/ws`
 - Authentication: session cookie from the same origin login flow
@@ -220,6 +220,8 @@ The contract below remains planned Milestone 4.3 work.
 }
 ```
 
+- `chat` is present for chat-scoped events and `null` for non-chat events such as `session.revoked`.
+
 ### Canonical Server Event Types
 - `message.created`
 - `message.updated`
@@ -235,6 +237,18 @@ The contract below remains planned Milestone 4.3 work.
 - `federation.peer.updated`
 - `federation.traffic.updated`
 
+Milestone 4.3 currently fans out:
+- `message.created`
+  - payload: `ChatMessage`
+- `message.updated`
+  - payload: `ChatMessage`
+- `message.deleted`
+  - payload: `ChatMessage`
+- `unread.updated`
+  - payload: `{ unreadCount, lastReadMessageId, updatedAt }`
+- `session.revoked`
+  - payload: `{ sessionId }`
+
 ### Client Control Messages
 - `tab.activity`
   Sends the stable tab key plus the latest activity timestamp.
@@ -242,6 +256,10 @@ The contract below remains planned Milestone 4.3 work.
   Best-effort signal that a browser tab is closing.
 - `subscription.resume`
   Optional reconnect hint carrying the last processed event id.
+
+Current backend behavior:
+- Milestone 4.3 accepts `subscription.resume` as a forward-compatible reconnect hint without server-side replay.
+- `tab.activity` and `tab.closed` stay reserved for Milestone 6 presence handling.
 
 ## History And Access Rules
 - Initial history load returns the newest page for the selected chat.

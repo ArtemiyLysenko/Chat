@@ -62,14 +62,18 @@ class JpaSessionPersistenceAdapter implements SessionPersistencePort {
 
     @Override
     @Transactional
-    public void revokeAllSessions(UUID userId, Instant revokedAt) {
+    public List<UUID> revokeAllSessions(UUID userId, Instant revokedAt) {
+        List<UUID> revokedSessionIds = userSessionJpaRepository.findActiveIdsByUserId(userId, revokedAt);
         userSessionJpaRepository.revokeAllSessions(userId, revokedAt);
+        return revokedSessionIds;
     }
 
     @Override
     @Transactional
-    public void revokeAllOtherSessions(UUID userId, UUID currentSessionId, Instant revokedAt) {
+    public List<UUID> revokeAllOtherSessions(UUID userId, UUID currentSessionId, Instant revokedAt) {
+        List<UUID> revokedSessionIds = userSessionJpaRepository.findActiveIdsByUserIdExcluding(userId, currentSessionId, revokedAt);
         userSessionJpaRepository.revokeAllOtherSessions(userId, currentSessionId, revokedAt);
+        return revokedSessionIds;
     }
 
     private static StoredSession toStoredSession(UserSessionEntity entity) {

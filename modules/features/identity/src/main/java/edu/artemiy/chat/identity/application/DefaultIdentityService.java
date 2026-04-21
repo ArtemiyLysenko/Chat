@@ -3,8 +3,10 @@ package edu.artemiy.chat.identity.application;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ import edu.artemiy.chat.identity.api.LoginSession;
 import edu.artemiy.chat.identity.api.RegisterUserCommand;
 import edu.artemiy.chat.identity.api.RegisteredUser;
 import edu.artemiy.chat.identity.api.RequestPasswordResetCommand;
+import edu.artemiy.chat.identity.api.SessionRevokedEvent;
 import edu.artemiy.chat.identity.api.SessionRevocationResult;
 import edu.artemiy.chat.identity.api.SessionSummary;
 import edu.artemiy.chat.identity.domain.CredentialRules;
@@ -62,6 +65,7 @@ public class DefaultIdentityService implements IdentityService {
     private final AuthenticatedUserPort authenticatedUserPort;
     private final AccountDeletionImpactPort accountDeletionImpactPort;
     private final IdentitySettings identitySettings;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public DefaultIdentityService(
         ClockPort clockPort,
@@ -72,7 +76,8 @@ public class DefaultIdentityService implements IdentityService {
         ResetNotificationPort resetNotificationPort,
         AuthenticatedUserPort authenticatedUserPort,
         AccountDeletionImpactPort accountDeletionImpactPort,
-        IdentitySettings identitySettings
+        IdentitySettings identitySettings,
+        ApplicationEventPublisher applicationEventPublisher
     ) {
         this.clockPort = clockPort;
         this.userPersistencePort = userPersistencePort;
@@ -83,6 +88,7 @@ public class DefaultIdentityService implements IdentityService {
         this.authenticatedUserPort = authenticatedUserPort;
         this.accountDeletionImpactPort = accountDeletionImpactPort;
         this.identitySettings = identitySettings;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Override
@@ -156,7 +162,10 @@ public class DefaultIdentityService implements IdentityService {
     @Transactional
     public void logout() {
         AuthenticatedUser authenticatedUser = requiredAuthenticatedUser();
-        sessionPersistencePort.revokeSession(authenticatedUser.userId(), authenticatedUser.sessionId(), clockPort.now());
+        Instant now = clockPort.now();
+        if (sessionPersistencePort.revokeSession(authenticatedUser.userId(), authenticatedUser.sessionId(), now)) {
+            publishSessionRevocation(authenticatedUser.userId(), Set.of(authenticatedUser.sessionId()), now);
+        }
     }
 
     @Override
@@ -181,10 +190,12 @@ public class DefaultIdentityService implements IdentityService {
     public SessionRevocationResult revokeSession(String sessionId) {
         AuthenticatedUser authenticatedUser = requiredAuthenticatedUser();
         UUID parsedSessionId = parseSessionId(sessionId);
-        boolean revoked = sessionPersistencePort.revokeSession(authenticatedUser.userId(), parsedSessionId, clockPort.now());
+        Instant now = clockPort.now();
+        boolean revoked = sessionPersistencePort.revokeSession(authenticatedUser.userId(), parsedSessionId, now);
         if (!revoked) {
             throw new IdentityException("identity.session_not_found", "Session was not found.", IdentityErrorType.NOT_FOUND);
         }
+        publishSessionRevocation(authenticatedUser.userId(), Set.of(parsedSessionId), now);
         return new SessionRevocationResult(parsedSessionId.equals(authenticatedUser.sessionId()));
     }
 
@@ -204,7 +215,7 @@ public class DefaultIdentityService implements IdentityService {
         Instant now = clockPort.now();
         userPersistencePort.updatePassword(user.id(), passwordHasher.hash(command.newPassword()));
         passwordResetTokenPersistencePort.invalidateOutstandingTokens(user.id(), now);
-        sessionPersistencePort.revokeAllOtherSessions(user.id(), authenticatedUser.sessionId(), now);
+        publishSessionRevocation(user.id(), Set.copyOf(sessionPersistencePort.revokeAllOtherSessions(user.id(), authenticatedUser.sessionId(), now)), now);
     }
 
     @Override
@@ -252,7 +263,7 @@ public class DefaultIdentityService implements IdentityService {
         }
         userPersistencePort.updatePassword(token.userId(), passwordHasher.hash(command.newPassword()));
         passwordResetTokenPersistencePort.invalidateOutstandingTokens(token.userId(), now);
-        sessionPersistencePort.revokeAllSessions(token.userId(), now);
+        publishSessionRevocation(token.userId(), Set.copyOf(sessionPersistencePort.revokeAllSessions(token.userId(), now)), now);
     }
 
     @Override
@@ -268,7 +279,7 @@ public class DefaultIdentityService implements IdentityService {
 
         Instant now = clockPort.now();
         TombstoneIdentity tombstoneIdentity = TombstoneIdentity.forUser(user.id());
-        sessionPersistencePort.revokeAllSessions(user.id(), now);
+        publishSessionRevocation(user.id(), Set.copyOf(sessionPersistencePort.revokeAllSessions(user.id(), now)), now);
         passwordResetTokenPersistencePort.invalidateOutstandingTokens(user.id(), now);
         userPersistencePort.tombstone(new TombstoneUserRecord(
             user.id(),
@@ -338,6 +349,13 @@ public class DefaultIdentityService implements IdentityService {
             "Password reset token is invalid or expired.",
             IdentityErrorType.BAD_REQUEST
         );
+    }
+
+    private void publishSessionRevocation(UUID userId, Set<UUID> sessionIds, Instant occurredAt) {
+        if (sessionIds.isEmpty()) {
+            return;
+        }
+        applicationEventPublisher.publishEvent(new SessionRevokedEvent(userId, sessionIds, occurredAt));
     }
 
     private static IdentityException duplicateRegistrationConflict(DuplicateUserIdentityException exception) {

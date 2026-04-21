@@ -37,11 +37,11 @@
               </section>
 
               <section class="panel">
-                <h3>Milestone 4.2 notes</h3>
+                <h3>Milestone 4 notes</h3>
                 <ul class="notes">
                   <li>Replies, edits, deletes, and unread badges are HTTP-driven only in this slice.</li>
                   <li>Uploads remain disabled until Milestone 5.</li>
-                  <li>Realtime `/ws` fan-out stays deferred to Milestone 4.3.</li>
+                  <li>The authenticated backend `/ws` transport is available, but this screen still uses HTTP refresh until Milestone 4.4 wires live updates.</li>
                 </ul>
               </section>
             </aside>
@@ -103,7 +103,7 @@
               <section class="detail-card">
                 <h3>Transport note</h3>
                 <div class="muted-block" data-dialog-placeholder>
-                  This screen uses HTTP history reads and message mutations only. Live push waits for Milestone 4.3.
+                  This screen still uses HTTP history reads and message mutations. The backend `/ws` channel exists already, and live browser wiring lands in Milestone 4.4.
                 </div>
               </section>
             </aside>

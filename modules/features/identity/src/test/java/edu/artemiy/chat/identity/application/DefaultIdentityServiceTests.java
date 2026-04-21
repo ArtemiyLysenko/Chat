@@ -72,7 +72,9 @@ class DefaultIdentityServiceTests {
             resetNotificationPort,
             authenticatedUserPort,
             accountDeletionImpactPort,
-            new IdentitySettings(Duration.ofDays(30), Duration.ofMinutes(15))
+            new IdentitySettings(Duration.ofDays(30), Duration.ofMinutes(15)),
+            event -> {
+            }
         );
     }
 
@@ -392,18 +394,24 @@ class DefaultIdentityServiceTests {
         }
 
         @Override
-        public void revokeAllSessions(UUID userId, Instant revokedAt) {
-            new ArrayList<>(sessions.values()).stream()
+        public List<UUID> revokeAllSessions(UUID userId, Instant revokedAt) {
+            List<UUID> revokedSessionIds = new ArrayList<>(sessions.values()).stream()
                 .filter(session -> session.userId().equals(userId))
-                .forEach(session -> revokeSession(userId, session.id(), revokedAt));
+                .map(StoredSession::id)
+                .toList();
+            revokedSessionIds.forEach(sessionId -> revokeSession(userId, sessionId, revokedAt));
+            return revokedSessionIds;
         }
 
         @Override
-        public void revokeAllOtherSessions(UUID userId, UUID currentSessionId, Instant revokedAt) {
-            new ArrayList<>(sessions.values()).stream()
+        public List<UUID> revokeAllOtherSessions(UUID userId, UUID currentSessionId, Instant revokedAt) {
+            List<UUID> revokedSessionIds = new ArrayList<>(sessions.values()).stream()
                 .filter(session -> session.userId().equals(userId))
                 .filter(session -> !session.id().equals(currentSessionId))
-                .forEach(session -> revokeSession(userId, session.id(), revokedAt));
+                .map(StoredSession::id)
+                .toList();
+            revokedSessionIds.forEach(sessionId -> revokeSession(userId, sessionId, revokedAt));
+            return revokedSessionIds;
         }
     }
 

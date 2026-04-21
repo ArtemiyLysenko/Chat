@@ -148,7 +148,7 @@ const renderDialogDetails = (dialog) => {
     detailLine("Established", formatDate(dialog.createdAt)),
   );
 
-  placeholderElement.textContent = "This screen reads and mutates direct messages over HTTP only. Live fan-out waits for Milestone 4.3.";
+  placeholderElement.textContent = "This screen still reads and mutates direct messages over HTTP. The backend /ws channel is live, and browser-side live updates land in Milestone 4.4.";
 };
 
 const refreshContacts = async () => {
