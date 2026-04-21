@@ -15,6 +15,8 @@ interface UserBlockJpaRepository extends JpaRepository<UserBlockEntity, UUID> {
 
     long deleteByBlockerUserIdAndBlockedUserId(UUID blockerUserId, UUID blockedUserId);
 
+    long deleteByBlockerUserIdOrBlockedUserId(UUID blockerUserId, UUID blockedUserId);
+
     @Query(
         value = """
             select

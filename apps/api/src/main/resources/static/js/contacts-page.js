@@ -88,6 +88,11 @@ const renderFriends = () => {
   }
 
   for (const friend of state.contacts.friends) {
+    const openDialogButton = actionButton("Open dialog");
+    openDialogButton.addEventListener("click", () => {
+      window.location.assign(`/app/direct-dialogs/${friend.user.id}`);
+    });
+
     const removeFriendButton = actionButton("Remove friend", "secondary");
     removeFriendButton.addEventListener("click", async () => {
       await performContactsAction(
@@ -108,7 +113,7 @@ const renderFriends = () => {
       contactCard(
         userLabel(friend.user),
         [`Friends since ${formatDate(friend.friendsSince)}`],
-        [removeFriendButton, blockButton]
+        [openDialogButton, removeFriendButton, blockButton]
       )
     );
   }

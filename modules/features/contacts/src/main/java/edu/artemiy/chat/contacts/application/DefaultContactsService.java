@@ -1,7 +1,6 @@
 package edu.artemiy.chat.contacts.application;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -14,6 +13,7 @@ import edu.artemiy.chat.contacts.api.ContactsException;
 import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.contacts.api.ContactsView;
 import edu.artemiy.chat.contacts.api.CreateFriendRequestCommand;
+import edu.artemiy.chat.contacts.api.DirectDialogSummary;
 import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
 import edu.artemiy.chat.contacts.api.FriendContactSummary;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmission;
@@ -22,13 +22,16 @@ import edu.artemiy.chat.contacts.api.PendingFriendRequestSummary;
 import edu.artemiy.chat.contacts.domain.ContactRelationshipState;
 import edu.artemiy.chat.contacts.domain.OrderedContactPair;
 import edu.artemiy.chat.contacts.spi.ContactsPersistencePort;
+import edu.artemiy.chat.contacts.spi.DuplicateDirectDialogException;
 import edu.artemiy.chat.contacts.spi.DuplicateFriendshipException;
 import edu.artemiy.chat.contacts.spi.DuplicatePendingFriendRequestException;
+import edu.artemiy.chat.contacts.spi.NewDirectDialogRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRequestRecord;
 import edu.artemiy.chat.contacts.spi.NewUserBlockRecord;
 import edu.artemiy.chat.contacts.spi.StoredBlockedContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredContactUser;
+import edu.artemiy.chat.contacts.spi.StoredDirectDialog;
 import edu.artemiy.chat.contacts.spi.StoredFriendContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredFriendship;
 import edu.artemiy.chat.contacts.spi.StoredFriendshipRequest;
@@ -249,6 +252,53 @@ public class DefaultContactsService implements ContactsService {
         return loadRelationshipState(actor.id(), target.id()).directMessageEligibility();
     }
 
+    @Override
+    @Transactional
+    public DirectDialogSummary ensureDirectDialog(UUID actorUserId, UUID userId) {
+        StoredContactUser actor = requireActiveUser(actorUserId);
+        StoredContactUser target = requireActiveUser(userId, "contacts.target_not_found", "Target user was not found.");
+        if (actor.id().equals(target.id())) {
+            throw new ContactsException(
+                "contacts.direct_message_self",
+                "You cannot open a direct dialog with yourself.",
+                ContactsErrorType.BAD_REQUEST
+            );
+        }
+
+        contactsPersistencePort.lockUserPair(actor.id(), target.id());
+        DirectMessageEligibility eligibility = loadRelationshipState(actor.id(), target.id()).directMessageEligibility();
+        if (eligibility != DirectMessageEligibility.ELIGIBLE) {
+            throw directDialogIneligibleException(eligibility);
+        }
+
+        OrderedContactPair pair = OrderedContactPair.of(actor.id(), target.id());
+        StoredDirectDialog existingDialog = contactsPersistencePort.findDirectDialog(pair.lowUserId(), pair.highUserId()).orElse(null);
+        if (existingDialog != null) {
+            return toDirectDialogSummary(existingDialog, target, false);
+        }
+
+        try {
+            StoredDirectDialog createdDialog = contactsPersistencePort.createDirectDialog(new NewDirectDialogRecord(
+                UUID.randomUUID(),
+                pair.lowUserId(),
+                pair.highUserId(),
+                clockPort.now()
+            ));
+            return toDirectDialogSummary(createdDialog, target, true);
+        }
+        catch (DuplicateDirectDialogException exception) {
+            StoredDirectDialog reusedDialog = contactsPersistencePort.findDirectDialog(pair.lowUserId(), pair.highUserId())
+                .orElseThrow(() -> exception);
+            return toDirectDialogSummary(reusedDialog, target, false);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void handleAccountDeleted(UUID userId) {
+        contactsPersistencePort.deleteRelationshipsForDeletedUser(userId);
+    }
+
     private StoredFriendship acceptLockedRequest(StoredFriendshipRequest request, Instant respondedAt) {
         StoredFriendship friendship = findFriendship(request.requesterUserId(), request.recipientUserId()).orElseGet(() -> {
             OrderedContactPair pair = OrderedContactPair.of(request.requesterUserId(), request.recipientUserId());
@@ -352,6 +402,22 @@ public class DefaultContactsService implements ContactsService {
         );
     }
 
+    private ContactsException directDialogIneligibleException(DirectMessageEligibility eligibility) {
+        return switch (eligibility) {
+            case NOT_FRIENDS -> new ContactsException(
+                "contacts.direct_dialog_not_friends",
+                "Direct dialogs require an active friendship.",
+                ContactsErrorType.CONFLICT
+            );
+            case BLOCKED -> new ContactsException(
+                "contacts.direct_dialog_blocked",
+                "Direct dialogs are unavailable while a block exists between these users.",
+                ContactsErrorType.CONFLICT
+            );
+            case ELIGIBLE -> throw new IllegalArgumentException("Eligibility must be ineligible for this error path.");
+        };
+    }
+
     private FriendContactSummary toFriendSummary(StoredFriendContactEntry entry) {
         return new FriendContactSummary(
             entry.friendshipId(),
@@ -373,6 +439,15 @@ public class DefaultContactsService implements ContactsService {
         return new BlockedContactSummary(
             toUserSummary(entry.otherUserId(), entry.otherUsername(), entry.otherDisplayName(), entry.otherDeleted()),
             entry.blockedAt()
+        );
+    }
+
+    private DirectDialogSummary toDirectDialogSummary(StoredDirectDialog dialog, StoredContactUser participant, boolean created) {
+        return new DirectDialogSummary(
+            dialog.id(),
+            toUserSummary(participant),
+            dialog.createdAt(),
+            created
         );
     }
 

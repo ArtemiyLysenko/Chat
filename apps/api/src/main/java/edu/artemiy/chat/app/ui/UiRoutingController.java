@@ -48,6 +48,11 @@ class UiRoutingController {
         return protectedPage(authentication, "forward:/sessions.html");
     }
 
+    @GetMapping("/app/direct-dialogs/{userId}")
+    String directDialog(Authentication authentication) {
+        return protectedPage(authentication, "forward:/direct-dialog.html");
+    }
+
     private static String authPage(Authentication authentication, String view) {
         return isAuthenticated(authentication) ? "redirect:/app" : view;
     }

@@ -24,15 +24,14 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 
 ### Contacts And Direct Messaging
 
-Milestone 3.2 currently implements `friendship_requests`, `friendships`, and `user_blocks`.
-`direct_dialogs` remains a planned logical table for Milestone 3.3 and is not yet present in the schema.
+Milestone 3 now implements `friendship_requests`, `friendships`, `user_blocks`, and `direct_dialogs`.
 
 | Table | Key columns | Purpose |
 | --- | --- | --- |
 | `friendship_requests` | `id`, `requester_user_id`, `recipient_user_id`, `message_text`, `status`, `created_at`, `responded_at` | Pending inbound and outbound friend requests |
 | `friendships` | `id`, `user_low_id`, `user_high_id`, `created_at` | Active symmetric friendship relation |
 | `user_blocks` | `id`, `blocker_user_id`, `blocked_user_id`, `created_at` | Active directional user blocks that deny new friend requests and new direct messages while active |
-| `direct_dialogs` | `id`, `user_low_id`, `user_high_id`, `created_at`, `last_message_at` | Planned Milestone 3.3 table for the stable direct chat identity per user pair |
+| `direct_dialogs` | `id`, `user_low_id`, `user_high_id`, `created_at` | Stable direct chat identity per ordered user pair, preserved across later friendship removal, block, unblock, and account deletion |
 
 ### Rooms And Moderation
 
@@ -67,7 +66,7 @@ Milestone 3.2 currently implements `friendship_requests`, `friendships`, and `us
 - `friendship_requests` must reject duplicate pending requests in the same direction.
 - `friendships` must be unique per ordered user pair.
 - `user_blocks` must be unique per blocker and blocked direction pair.
-- `direct_dialogs` must be unique per ordered user pair once that table lands in Milestone 3.3.
+- `direct_dialogs` must be unique per ordered user pair.
 - `room_memberships` must be unique per active room and user pair.
 - `room_bans` must be unique per active room and user pair.
 - `messages` must reference exactly one target: either `room_id` or `direct_dialog_id`.
@@ -101,7 +100,7 @@ Milestone 3.2 currently implements `friendship_requests`, `friendships`, and `us
 ## Deletion And Retention Rules
 - Deleting a room hard-deletes the room, its memberships, bans, invites, messages, unread markers, moderation events, attachment metadata, and filesystem blobs.
 - Milestone 1 account deletion invalidates sessions, clears credentials, replaces email and username with unique tombstone values, and preserves historical non-owned messages through a tombstoned `users` row.
-- Milestone 2 account deletion cleanup now uses `AccountDeletionImpactPort` to delete rooms owned by the deleted user, remove their memberships from other rooms, remove invites created by or for them, and remove bans targeting them.
+- Account deletion now uses `AccountDeletionImpactPort` to delete rooms owned by the deleted user, remove their memberships from other rooms, remove invites created by or for them, remove bans targeting them, remove friendship requests, friendships, and user blocks involving them, and preserve `direct_dialogs` rows for future history linkage.
 - Tombstoned `users` rows remain in place so moderation audit records and surviving ban-actor references in non-deleted rooms can still resolve historical actors.
 - Tombstoning clears login ability and personal identifiers while keeping a stable row for later message authorship joins and UI rendering.
 - Friendship removal preserves direct-dialog history but prevents new direct messages until friendship is re-established.

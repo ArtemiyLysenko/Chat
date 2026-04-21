@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.contacts.api.ContactsView;
 import edu.artemiy.chat.contacts.api.CreateFriendRequestCommand;
+import edu.artemiy.chat.contacts.api.DirectDialogSummary;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmission;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmissionOutcome;
 
@@ -82,6 +83,13 @@ class ContactsHttpController {
     ResponseEntity<Void> unblockUser(@PathVariable UUID userId, Authentication authentication) {
         contactsService.unblockUser(AuthenticatedHttpUserSupport.userId(authentication), userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/api/direct-dialogs/{userId}")
+    ResponseEntity<DirectDialogSummary> ensureDirectDialog(@PathVariable UUID userId, Authentication authentication) {
+        DirectDialogSummary dialog = contactsService.ensureDirectDialog(AuthenticatedHttpUserSupport.userId(authentication), userId);
+        HttpStatus status = dialog.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(dialog);
     }
 
     private record CreateFriendRequestRequest(

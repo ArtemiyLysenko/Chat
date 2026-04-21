@@ -61,6 +61,7 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         jdbcTemplate.execute(
             """
                 truncate table
+                    direct_dialogs,
                     user_blocks,
                     moderation_audit_events,
                     room_bans,
@@ -156,6 +157,10 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         assertThat(unauthenticatedProtectedStaticPage.statusCode()).isEqualTo(302);
         assertThat(redirectPath(unauthenticatedProtectedStaticPage)).isEqualTo("/login");
 
+        HttpResponse<String> unauthenticatedDirectDialogPage = browser.get("/app/direct-dialogs/11111111-1111-1111-1111-111111111111");
+        assertThat(unauthenticatedDirectDialogPage.statusCode()).isEqualTo(302);
+        assertThat(redirectPath(unauthenticatedDirectDialogPage)).isEqualTo("/login");
+
         HttpResponse<String> unauthenticatedSessionsStaticPage = browser.get("/sessions.html");
         assertThat(unauthenticatedSessionsStaticPage.statusCode()).isEqualTo(302);
         assertThat(redirectPath(unauthenticatedSessionsStaticPage)).isEqualTo("/login");
@@ -173,6 +178,10 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         HttpResponse<String> authenticatedProtectedStaticPage = browser.get("/app.html");
         assertThat(authenticatedProtectedStaticPage.statusCode()).isEqualTo(200);
         assertThat(authenticatedProtectedStaticPage.body()).contains("Password change");
+
+        HttpResponse<String> authenticatedDirectDialogPage = browser.get("/app/direct-dialogs/11111111-1111-1111-1111-111111111111");
+        assertThat(authenticatedDirectDialogPage.statusCode()).isEqualTo(200);
+        assertThat(authenticatedDirectDialogPage.body()).contains("Direct dialog placeholder");
     }
 
     @Test

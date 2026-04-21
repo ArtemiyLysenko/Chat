@@ -79,6 +79,7 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
         jdbcTemplate.execute(
             """
                 truncate table
+                    direct_dialogs,
                     user_blocks,
                     friendships,
                     friendship_requests,
@@ -308,6 +309,50 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
     }
 
     @Test
+    void ensureDirectDialogCreatesThenReusesStableIdentity() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        JsonNode captainToScout = postJson(
+            "/api/friend-requests",
+            """
+                {"username":"scout"}
+                """,
+            captain,
+            201
+        );
+        postWithoutBody("/api/friend-requests/%s/accept".formatted(captainToScout.path("requestId").asText()), scout, 204);
+
+        JsonNode createdDialog = postJson("/api/direct-dialogs/%s".formatted(scout.userId()), null, captain, 201);
+        JsonNode reusedDialog = postJson("/api/direct-dialogs/%s".formatted(captain.userId()), null, scout, 200);
+
+        assertThat(createdDialog.path("dialogId").asText()).isNotBlank();
+        assertThat(createdDialog.path("created").asBoolean()).isTrue();
+        assertThat(createdDialog.path("participant").path("username").asText()).isEqualTo("scout");
+        assertThat(reusedDialog.path("dialogId").asText()).isEqualTo(createdDialog.path("dialogId").asText());
+        assertThat(reusedDialog.path("created").asBoolean()).isFalse();
+        assertThat(reusedDialog.path("participant").path("username").asText()).isEqualTo("captain");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from direct_dialogs", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void deniesDirectDialogEnsureWhenPairIsIneligible() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        MockHttpServletResponse deniedResponse = postJsonRaw(
+            "/api/direct-dialogs/%s".formatted(scout.userId()),
+            null,
+            captain.csrfCookie(),
+            captain.sessionCookie(),
+            409
+        ).getResponse();
+
+        JsonNode error = objectMapper.readTree(deniedResponse.getContentAsString());
+        assertThat(error.path("code").asText()).isEqualTo("contacts.direct_dialog_not_friends");
+    }
+
+    @Test
     void returnsContactsShapeWithAcceptedPendingAndBlockedRelationships() throws Exception {
         AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
         AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
@@ -351,6 +396,68 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
         assertThat(contacts.path("outboundPendingRequests").get(0).path("user").path("username").asText()).isEqualTo("analyst");
         assertThat(contacts.path("blockedUsers").size()).isEqualTo(1);
         assertThat(contacts.path("blockedUsers").get(0).path("user").path("username").asText()).isEqualTo("pilot");
+    }
+
+    @Test
+    void accountDeletionCleansContactsStateButPreservesDirectDialogs() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+        AuthenticatedClient analyst = registerAndLogin("analyst@example.com", "analyst");
+
+        JsonNode captainToScout = postJson(
+            "/api/friend-requests",
+            """
+                {"username":"scout"}
+                """,
+            captain,
+            201
+        );
+        postWithoutBody("/api/friend-requests/%s/accept".formatted(captainToScout.path("requestId").asText()), scout, 204);
+        JsonNode directDialog = postJson("/api/direct-dialogs/%s".formatted(scout.userId()), null, captain, 201);
+
+        postJson(
+            "/api/friend-requests",
+            """
+                {"userId":"%s","messageText":"Before deletion"}
+                """.formatted(captain.userId()),
+            analyst,
+            201
+        );
+        putWithoutBody("/api/blocks/%s".formatted(analyst.userId()), captain, 204);
+
+        deleteJson(
+            "/api/account",
+            """
+                {"currentPassword":"password123"}
+                """,
+            captain,
+            204
+        );
+
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from friendship_requests where requester_user_id = ? or recipient_user_id = ?",
+            Integer.class,
+            captain.userId(),
+            captain.userId()
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from friendships where user_low_id = ? or user_high_id = ?",
+            Integer.class,
+            captain.userId(),
+            captain.userId()
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from user_blocks where blocker_user_id = ? or blocked_user_id = ?",
+            Integer.class,
+            captain.userId(),
+            captain.userId()
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+            "select count(*) from direct_dialogs where id = ?",
+            Integer.class,
+            UUID.fromString(directDialog.path("dialogId").asText())
+        )).isEqualTo(1);
+        assertThat(getJson("/api/contacts", scout).path("friends").size()).isZero();
     }
 
     private AuthenticatedClient registerAndLogin(String email, String username) throws Exception {
@@ -416,6 +523,16 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
 
     private void deleteWithoutBody(String path, AuthenticatedClient client, int expectedStatus) throws Exception {
         requestWithoutBody(path, client, expectedStatus, HttpMethod.DELETE);
+    }
+
+    private void deleteJson(String path, String body, AuthenticatedClient client, int expectedStatus) throws Exception {
+        mockMvc.perform(
+            delete(path)
+                .contentType(APPLICATION_JSON)
+                .header("X-CSRF-TOKEN", client.csrfCookie().getValue())
+                .cookie(client.csrfCookie(), client.sessionCookie())
+                .content(body)
+        ).andExpect(status().is(expectedStatus));
     }
 
     private MvcResult requestWithoutBody(String path, AuthenticatedClient client, int expectedStatus, HttpMethod method) throws Exception {

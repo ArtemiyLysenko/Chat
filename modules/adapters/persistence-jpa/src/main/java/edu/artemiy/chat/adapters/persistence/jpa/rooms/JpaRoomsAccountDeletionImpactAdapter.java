@@ -3,9 +3,11 @@ package edu.artemiy.chat.adapters.persistence.jpa.rooms;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.identity.spi.AccountDeletionImpact;
 import edu.artemiy.chat.identity.spi.AccountDeletionImpactPort;
 
@@ -16,17 +18,20 @@ class JpaRoomsAccountDeletionImpactAdapter implements AccountDeletionImpactPort 
     private final RoomMembershipJpaRepository roomMembershipJpaRepository;
     private final RoomInviteJpaRepository roomInviteJpaRepository;
     private final RoomBanJpaRepository roomBanJpaRepository;
+    private final ObjectProvider<ContactsService> contactsServiceProvider;
 
     JpaRoomsAccountDeletionImpactAdapter(
         RoomJpaRepository roomJpaRepository,
         RoomMembershipJpaRepository roomMembershipJpaRepository,
         RoomInviteJpaRepository roomInviteJpaRepository,
-        RoomBanJpaRepository roomBanJpaRepository
+        RoomBanJpaRepository roomBanJpaRepository,
+        ObjectProvider<ContactsService> contactsServiceProvider
     ) {
         this.roomJpaRepository = roomJpaRepository;
         this.roomMembershipJpaRepository = roomMembershipJpaRepository;
         this.roomInviteJpaRepository = roomInviteJpaRepository;
         this.roomBanJpaRepository = roomBanJpaRepository;
+        this.contactsServiceProvider = contactsServiceProvider;
     }
 
     @Override
@@ -44,5 +49,6 @@ class JpaRoomsAccountDeletionImpactAdapter implements AccountDeletionImpactPort 
         roomInviteJpaRepository.deleteByIdInvitedUserId(impact.userId());
         roomInviteJpaRepository.deleteByInvitedByUserId(impact.userId());
         roomBanJpaRepository.deleteByIdUserId(impact.userId());
+        contactsServiceProvider.ifAvailable(service -> service.handleAccountDeleted(impact.userId()));
     }
 }

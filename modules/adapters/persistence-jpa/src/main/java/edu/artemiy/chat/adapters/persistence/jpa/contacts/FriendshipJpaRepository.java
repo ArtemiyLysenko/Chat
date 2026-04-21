@@ -13,6 +13,8 @@ interface FriendshipJpaRepository extends JpaRepository<FriendshipEntity, UUID> 
 
     Optional<FriendshipEntity> findByUserLowIdAndUserHighId(UUID userLowId, UUID userHighId);
 
+    long deleteByUserLowIdOrUserHighId(UUID userLowId, UUID userHighId);
+
     @Query(
         value = """
             select

@@ -8,17 +8,21 @@ import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import edu.artemiy.chat.contacts.spi.ContactsPersistencePort;
+import edu.artemiy.chat.contacts.spi.DuplicateDirectDialogException;
 import edu.artemiy.chat.contacts.spi.DuplicateFriendshipException;
 import edu.artemiy.chat.contacts.spi.DuplicatePendingFriendRequestException;
 import edu.artemiy.chat.contacts.spi.DuplicateUserBlockException;
 import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
+import edu.artemiy.chat.contacts.spi.NewDirectDialogRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRequestRecord;
 import edu.artemiy.chat.contacts.spi.NewUserBlockRecord;
 import edu.artemiy.chat.contacts.spi.StoredBlockedContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredContactUser;
+import edu.artemiy.chat.contacts.spi.StoredDirectDialog;
 import edu.artemiy.chat.contacts.spi.StoredFriendContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredFriendship;
 import edu.artemiy.chat.contacts.spi.StoredFriendshipRequest;
@@ -31,6 +35,7 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     private final FriendshipRequestJpaRepository friendshipRequestJpaRepository;
     private final FriendshipJpaRepository friendshipJpaRepository;
     private final UserBlockJpaRepository userBlockJpaRepository;
+    private final DirectDialogJpaRepository directDialogJpaRepository;
     private final ContactUserReadRepository contactUserReadRepository;
     private final JdbcTemplate jdbcTemplate;
 
@@ -38,12 +43,14 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
         FriendshipRequestJpaRepository friendshipRequestJpaRepository,
         FriendshipJpaRepository friendshipJpaRepository,
         UserBlockJpaRepository userBlockJpaRepository,
+        DirectDialogJpaRepository directDialogJpaRepository,
         ContactUserReadRepository contactUserReadRepository,
         JdbcTemplate jdbcTemplate
     ) {
         this.friendshipRequestJpaRepository = friendshipRequestJpaRepository;
         this.friendshipJpaRepository = friendshipJpaRepository;
         this.userBlockJpaRepository = userBlockJpaRepository;
+        this.directDialogJpaRepository = directDialogJpaRepository;
         this.contactUserReadRepository = contactUserReadRepository;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -115,6 +122,12 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     }
 
     @Override
+    public Optional<StoredDirectDialog> findDirectDialog(UUID userLowId, UUID userHighId) {
+        return directDialogJpaRepository.findByUserLowIdAndUserHighId(userLowId, userHighId)
+            .map(JpaContactsPersistenceAdapter::toStoredDirectDialog);
+    }
+
+    @Override
     public StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request) {
         try {
             return toStoredFriendshipRequest(friendshipRequestJpaRepository.saveAndFlush(new FriendshipRequestEntity(
@@ -172,6 +185,24 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     }
 
     @Override
+    public StoredDirectDialog createDirectDialog(NewDirectDialogRecord dialog) {
+        try {
+            return toStoredDirectDialog(directDialogJpaRepository.saveAndFlush(new DirectDialogEntity(
+                dialog.id(),
+                dialog.userLowId(),
+                dialog.userHighId(),
+                dialog.createdAt()
+            )));
+        }
+        catch (DataIntegrityViolationException exception) {
+            if (isConstraint(exception, "uq_direct_dialogs_pair")) {
+                throw new DuplicateDirectDialogException(exception);
+            }
+            throw exception;
+        }
+    }
+
+    @Override
     public void markFriendshipRequestAccepted(UUID requestId, java.time.Instant respondedAt) {
         FriendshipRequestEntity entity = friendshipRequestJpaRepository.findById(requestId).orElseThrow();
         entity.markAccepted(respondedAt);
@@ -198,6 +229,14 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
     @Override
     public void deleteUserBlock(UUID blockerUserId, UUID blockedUserId) {
         userBlockJpaRepository.deleteByBlockerUserIdAndBlockedUserId(blockerUserId, blockedUserId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRelationshipsForDeletedUser(UUID userId) {
+        friendshipRequestJpaRepository.deleteByRequesterUserIdOrRecipientUserId(userId, userId);
+        friendshipJpaRepository.deleteByUserLowIdOrUserHighId(userId, userId);
+        userBlockJpaRepository.deleteByBlockerUserIdOrBlockedUserId(userId, userId);
     }
 
     @Override
@@ -283,6 +322,15 @@ class JpaContactsPersistenceAdapter implements ContactsPersistencePort {
             entity.getId(),
             entity.getBlockerUserId(),
             entity.getBlockedUserId(),
+            entity.getCreatedAt()
+        );
+    }
+
+    private static StoredDirectDialog toStoredDirectDialog(DirectDialogEntity entity) {
+        return new StoredDirectDialog(
+            entity.getId(),
+            entity.getUserLowId(),
+            entity.getUserHighId(),
             entity.getCreatedAt()
         );
     }

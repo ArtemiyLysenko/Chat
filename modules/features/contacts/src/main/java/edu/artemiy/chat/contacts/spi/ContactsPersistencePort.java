@@ -25,11 +25,15 @@ public interface ContactsPersistencePort {
 
     Optional<StoredUserBlock> findUserBlock(UUID blockerUserId, UUID blockedUserId);
 
+    Optional<StoredDirectDialog> findDirectDialog(UUID userLowId, UUID userHighId);
+
     StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request);
 
     StoredFriendship createFriendship(NewFriendshipRecord friendship);
 
     StoredUserBlock createUserBlock(NewUserBlockRecord block);
+
+    StoredDirectDialog createDirectDialog(NewDirectDialogRecord dialog);
 
     void markFriendshipRequestAccepted(UUID requestId, Instant respondedAt);
 
@@ -40,6 +44,8 @@ public interface ContactsPersistencePort {
     void deleteFriendship(UUID friendshipId);
 
     void deleteUserBlock(UUID blockerUserId, UUID blockedUserId);
+
+    void deleteRelationshipsForDeletedUser(UUID userId);
 
     List<StoredFriendContactEntry> listFriends(UUID userId);
 

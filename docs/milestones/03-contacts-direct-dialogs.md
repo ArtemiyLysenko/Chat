@@ -1,10 +1,10 @@
 # Milestone 3: Friendships, Blocks, And Direct-Dialog Eligibility
 
 ## Summary
-Milestone 3 is being delivered in slices so contacts behavior can land without prematurely dragging in blocks or direct dialogs.
-Milestone 3.1 delivers friendship request workflow, accepted-friends state, and a dedicated contacts page.
-Milestone 3.2 adds friendship removal, block and unblock behavior, and the shared direct-message eligibility rule.
-Later Milestone 3 slices still need to add contacts-side account-deletion cleanup and stable direct-dialog identity.
+Milestone 3 is complete across slices 3.1 through 3.3.
+Milestone 3.1 delivered friendship request workflow, accepted-friends state, and a dedicated contacts page.
+Milestone 3.2 added friendship removal, block and unblock behavior, and the shared direct-message eligibility rule.
+Milestone 3.3 closes the milestone with stable direct-dialog identity, the dedicated placeholder view, and contacts-side account-deletion cleanup while still deferring actual messaging to Milestone 4.
 
 ## Milestone 3.1 Deliverables
 - Contacts feature `api`, `application`, and `spi` packages with one central friendship-request path.
@@ -28,11 +28,12 @@ Later Milestone 3 slices still need to add contacts-side account-deletion cleanu
    - Implement the friend-request create, accept, reject, and contacts-list baseline.
    - Add `friendship_requests` and `friendships` persistence only.
    - Ship the dedicated contacts page linked from `/app`.
-2. Later Milestone 3 slice
+2. Milestone 3.2
    - Add remove-friend plus block and unblock behavior.
-   - Add contacts-side account-deletion cleanup.
-3. Later Milestone 3 slice
+   - Keep contacts-side account-deletion cleanup for the final slice.
+3. Milestone 3.3
    - Add stable direct-dialog ensure or lookup and the rest of the direct-message eligibility workflow needed before Milestone 4 messaging.
+   - Add contacts-side account-deletion cleanup without deleting `direct_dialogs`.
 
 ## Milestone 3.2 Deliverables
 - Contacts feature `api`, `application`, `domain`, and `spi` packages extended for remove-friend, block, unblock, and reusable direct-message eligibility evaluation.
@@ -99,3 +100,33 @@ Later Milestone 3 slices still need to add contacts-side account-deletion cleanu
 - The dedicated contacts page renders accepted friends, inbound pending requests, outbound pending requests, and blocked users with the required remove, block, and unblock controls.
 - Only Milestone 3.2 scope is implemented; direct-dialog creation, contacts-side account-deletion cleanup, and later messaging work remain deferred.
 - The slice ends with a green `./gradlew test` and a dated Milestone 3.2 evidence note in `docs/evidence/`.
+
+## Milestone 3.3 Deliverables
+- Contacts feature `api`, `application`, and `spi` packages extended for direct-dialog ensure or fetch plus contacts-side account-deletion cleanup.
+- One stable `direct_dialogs` row per ordered user pair, created or reused through `POST /api/direct-dialogs/{userId}` only when the pair currently satisfies `DirectMessageEligibility.ELIGIBLE`.
+- Forward Flyway migration and JPA persistence for `direct_dialogs`, including ordered-pair uniqueness and reuse on concurrent or repeated ensure calls.
+- Dedicated direct-dialog placeholder route and static page that show the participant, stable dialog identity, and an explicit Milestone 4 defer message.
+- Account deletion cleanup now removes requests, friendships, and blocks involving the deleted user while preserving `direct_dialogs` rows.
+
+## Milestone 3.3 Behavior Locks
+- `POST /api/direct-dialogs/{userId}` creates a direct dialog when no row exists and reuses the same identifier when the ordered pair already has a row.
+- Direct-dialog ensure or fetch succeeds only when the pair currently has an active friendship and no block in either direction.
+- Removing a friend, blocking, unblocking, or deleting an account later does not delete the direct-dialog row.
+- Milestone 3.3 still does not implement actual direct-message send, history, unread state, or realtime updates.
+
+## Milestone 3.3 Tests And Evidence
+- Automated
+  - service tests for eligible ensure, stable reuse, ineligible denial, dialog preservation after friendship removal, dialog preservation after block, and contacts-side account deletion cleanup while preserving the dialog row
+  - persistence tests for ordered-pair uniqueness in `direct_dialogs`, stable reuse via lookup, and preserved direct-dialog rows after relationship cleanup
+  - HTTP integration tests for `POST /api/direct-dialogs/{userId}` create or fetch, ineligible denial, and account deletion cleaning contacts state while preserving `direct_dialogs`
+- Manual
+  - browser proof for accepted-friend contacts state after the Milestone 3.3 changes
+  - browser proof for opening the dedicated direct-dialog placeholder from the contacts page
+  - browser proof that the same pair reuses the same stable direct-dialog id from both directions
+  - browser proof that the placeholder stays messaging-free and that block flow still works after the dialog is created
+
+## Milestone 3 Exit Criteria
+- Friendship requests, block rules, direct-message eligibility, stable direct-dialog identity, and contacts-side account deletion cleanup are encoded in reusable contacts-domain paths rather than repeated in controllers or repositories.
+- The dedicated contacts page plus the dedicated direct-dialog placeholder page are reachable from the authenticated shell and behave consistently with the milestone locks.
+- Full Milestone 3 is complete and verified, while actual message send, message history, unread state, and realtime direct-message updates remain deferred to Milestone 4.
+- The milestone ends with a green `./gradlew test` and dated Milestone 3.1, 3.2, and 3.3 evidence notes in `docs/evidence/`.

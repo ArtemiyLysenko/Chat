@@ -19,4 +19,8 @@ public interface ContactsService {
     void unblockUser(UUID actorUserId, UUID userId);
 
     DirectMessageEligibility evaluateDirectMessageEligibility(UUID actorUserId, UUID userId);
+
+    DirectDialogSummary ensureDirectDialog(UUID actorUserId, UUID userId);
+
+    void handleAccountDeleted(UUID userId);
 }

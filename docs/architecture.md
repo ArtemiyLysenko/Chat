@@ -40,7 +40,7 @@ It builds on ADR 0001 and should be read together with:
 | --- | --- | --- |
 | Identity and sessions | Registration, login, logout, password lifecycle, persistent sessions, active session view and revocation, account deletion policy | PostgreSQL |
 | Presence | Per-tab activity tracking, user online and AFK transitions, low-latency presence fan-out | PostgreSQL plus in-process connection state |
-| Contacts and direct messaging | Friend requests, accepted friendships, user blocks, and centralized direct-message eligibility. Milestone 3.2 currently ships the request lifecycle, friendship removal, directional blocks, and the dedicated contacts page; direct-dialog identity remains Milestone 3.3 work. | PostgreSQL |
+| Contacts and direct messaging | Friend requests, accepted friendships, user blocks, centralized direct-message eligibility, stable direct-dialog identity, dedicated placeholder UI, and contacts-side account-deletion cleanup that preserves direct dialogs | PostgreSQL |
 | Rooms and moderation | Public catalog, private room membership, invitations, roles, bans, room deletion, moderation audit | PostgreSQL |
 | Messaging and history | Message creation, edit, delete, reply links, unread markers, cursor-based history loading | PostgreSQL |
 | Attachments and access control | Upload metadata, binary storage, download authorization, room-access revocation | PostgreSQL plus local filesystem |
@@ -64,7 +64,7 @@ It builds on ADR 0001 and should be read together with:
 - XMPP-connected clients and federated peers must map onto the same authorization and history rules as the web UI.
 - Message history uses cursor pagination from the start. Initial load returns the newest window; older windows are fetched by cursor and rendered chronologically.
 - Room names are globally unique. Owners cannot leave their own room; they must delete it instead.
-- Milestone 1 account deletion removes credentials, revokes sessions, tombstones the user row, and invokes `AccountDeletionImpactPort`. Milestone 2 now uses that hook to delete owned rooms, remove non-owned room memberships, clear room invites created by or for the deleted user, and clear bans targeting the deleted user. Surviving moderation and ban-actor references continue to point at the tombstoned `users` row.
+- Milestone 1 account deletion removes credentials, revokes sessions, tombstones the user row, and invokes `AccountDeletionImpactPort`. The current implementation now uses that hook to delete owned rooms, remove non-owned room memberships, clear room invites created by or for the deleted user, clear bans targeting the deleted user, remove friend requests, friendships, and user blocks involving the deleted user, and preserve direct-dialog rows for later history joins. Surviving moderation and ban-actor references continue to point at the tombstoned `users` row.
 - The web UI must expose Jabber administration screens for current connections and federation traffic statistics.
 
 ## Critical End-To-End Flows
@@ -73,7 +73,7 @@ It builds on ADR 0001 and should be read together with:
 2. Room catalog, membership, and moderation
    Public rooms are discoverable and their full details are readable by authenticated users unless banned. Private rooms require invitation for join, and invited users only see the room name and owner before they join. Role changes, bans, removals, and room deletion must update database state consistently, with member removal keeping regular-member removal separate from admin removal plus ban.
 3. Friendship to direct-dialog eligibility
-   Milestone 3.2 lets authenticated users create friend requests by username or user id, auto-accept the opposite-direction pending request, accept or reject inbound requests, remove friendships, block or unblock users, and review accepted, pending, and blocked state on a dedicated contacts page. The shared direct-message eligibility rule now depends on active friendship plus no block in either direction. Stable direct-dialog identity and lookup remain Milestone 3.3 work.
+   Milestone 3 now lets authenticated users create friend requests by username or user id, auto-accept the opposite-direction pending request, accept or reject inbound requests, remove friendships, block or unblock users, ensure or reopen a stable direct dialog per ordered user pair, and review accepted, pending, blocked, and placeholder direct-dialog state through the dedicated contacts flow. The shared direct-message eligibility rule depends on active friendship plus no block in either direction. Direct-message sending, history, unread state, and realtime fan-out remain Milestone 4 work.
 4. Message send, edit, delete, and unread updates
    Writes land in PostgreSQL first, then emit WebSocket events to all still-authorized sessions. Message edits and deletions are represented as state changes rather than row removal in the normal path.
 5. Attachment upload and download authorization

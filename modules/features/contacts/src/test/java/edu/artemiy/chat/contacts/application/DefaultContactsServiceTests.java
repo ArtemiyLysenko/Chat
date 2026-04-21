@@ -20,15 +20,18 @@ import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
 import edu.artemiy.chat.contacts.api.FriendRequestSubmissionOutcome;
 import edu.artemiy.chat.contacts.domain.OrderedContactPair;
 import edu.artemiy.chat.contacts.spi.ContactsPersistencePort;
+import edu.artemiy.chat.contacts.spi.DuplicateDirectDialogException;
 import edu.artemiy.chat.contacts.spi.DuplicateFriendshipException;
 import edu.artemiy.chat.contacts.spi.DuplicatePendingFriendRequestException;
 import edu.artemiy.chat.contacts.spi.DuplicateUserBlockException;
 import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
+import edu.artemiy.chat.contacts.spi.NewDirectDialogRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRecord;
 import edu.artemiy.chat.contacts.spi.NewFriendshipRequestRecord;
 import edu.artemiy.chat.contacts.spi.NewUserBlockRecord;
 import edu.artemiy.chat.contacts.spi.StoredBlockedContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredContactUser;
+import edu.artemiy.chat.contacts.spi.StoredDirectDialog;
 import edu.artemiy.chat.contacts.spi.StoredFriendContactEntry;
 import edu.artemiy.chat.contacts.spi.StoredFriendship;
 import edu.artemiy.chat.contacts.spi.StoredFriendshipRequest;
@@ -279,6 +282,96 @@ class DefaultContactsServiceTests {
     }
 
     @Test
+    void ensuresDirectDialogForEligiblePair() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+
+        var dialog = service.ensureDirectDialog(captain.id(), scout.id());
+
+        assertThat(dialog.created()).isTrue();
+        assertThat(dialog.participant().username()).isEqualTo("scout");
+        assertThat(contactsPersistencePort.findDirectDialogForUsers(captain.id(), scout.id()))
+            .hasValueSatisfying(storedDialog -> assertThat(storedDialog.id()).isEqualTo(dialog.dialogId()));
+    }
+
+    @Test
+    void reusesStableDirectDialogForSamePair() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+
+        var firstDialog = service.ensureDirectDialog(captain.id(), scout.id());
+        var secondDialog = service.ensureDirectDialog(scout.id(), captain.id());
+
+        assertThat(firstDialog.dialogId()).isEqualTo(secondDialog.dialogId());
+        assertThat(secondDialog.created()).isFalse();
+        assertThat(contactsPersistencePort.directDialogCount()).isEqualTo(1);
+    }
+
+    @Test
+    void deniesDirectDialogEnsureWhenPairIsIneligible() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+
+        assertThatThrownBy(() -> service.ensureDirectDialog(captain.id(), scout.id()))
+            .isInstanceOfSatisfying(ContactsException.class, exception -> {
+                assertThat(exception.code()).isEqualTo("contacts.direct_dialog_not_friends");
+                assertThat(exception.errorType()).isEqualTo(ContactsErrorType.CONFLICT);
+            });
+    }
+
+    @Test
+    void preservesDirectDialogAfterFriendshipRemoval() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+
+        var dialog = service.ensureDirectDialog(captain.id(), scout.id());
+
+        service.removeFriend(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+        assertThat(contactsPersistencePort.findDirectDialogForUsers(captain.id(), scout.id()))
+            .hasValueSatisfying(storedDialog -> assertThat(storedDialog.id()).isEqualTo(dialog.dialogId()));
+    }
+
+    @Test
+    void preservesDirectDialogAfterBlock() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+
+        var dialog = service.ensureDirectDialog(captain.id(), scout.id());
+
+        service.blockUser(captain.id(), scout.id());
+
+        assertThat(contactsPersistencePort.findFriendshipForUsers(captain.id(), scout.id())).isEmpty();
+        assertThat(contactsPersistencePort.findUserBlock(captain.id(), scout.id())).isPresent();
+        assertThat(contactsPersistencePort.findDirectDialogForUsers(captain.id(), scout.id()))
+            .hasValueSatisfying(storedDialog -> assertThat(storedDialog.id()).isEqualTo(dialog.dialogId()));
+    }
+
+    @Test
+    void accountDeletionCleanupRemovesContactStateButPreservesDirectDialog() {
+        StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
+        StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
+        StoredContactUser pilot = contactsPersistencePort.userByUsername("pilot");
+        contactsPersistencePort.addFriendship(captain.id(), scout.id(), NOW.minusSeconds(600));
+        var dialog = service.ensureDirectDialog(captain.id(), scout.id());
+        contactsPersistencePort.addPendingRequest(pilot.id(), captain.id(), "Inbound", NOW.minusSeconds(60));
+        contactsPersistencePort.addBlock(captain.id(), pilot.id(), NOW.minusSeconds(30));
+
+        service.handleAccountDeleted(captain.id());
+
+        assertThat(contactsPersistencePort.hasAnyFriendshipInvolving(captain.id())).isFalse();
+        assertThat(contactsPersistencePort.hasAnyRequestInvolving(captain.id())).isFalse();
+        assertThat(contactsPersistencePort.hasAnyBlockInvolving(captain.id())).isFalse();
+        assertThat(contactsPersistencePort.findDirectDialogForUsers(captain.id(), scout.id()))
+            .hasValueSatisfying(storedDialog -> assertThat(storedDialog.id()).isEqualTo(dialog.dialogId()));
+    }
+
+    @Test
     void listsAcceptedPendingAndBlockedContactState() {
         StoredContactUser captain = contactsPersistencePort.userByUsername("captain");
         StoredContactUser scout = contactsPersistencePort.userByUsername("scout");
@@ -318,6 +411,7 @@ class DefaultContactsServiceTests {
         private final Map<UUID, StoredFriendshipRequest> friendshipRequests = new LinkedHashMap<>();
         private final Map<UUID, StoredFriendship> friendships = new LinkedHashMap<>();
         private final Map<UUID, StoredUserBlock> userBlocks = new LinkedHashMap<>();
+        private final Map<UUID, StoredDirectDialog> directDialogs = new LinkedHashMap<>();
 
         @Override
         public Optional<StoredContactUser> findUserById(UUID userId) {
@@ -377,6 +471,14 @@ class DefaultContactsServiceTests {
         }
 
         @Override
+        public Optional<StoredDirectDialog> findDirectDialog(UUID userLowId, UUID userHighId) {
+            return directDialogs.values().stream()
+                .filter(dialog -> dialog.userLowId().equals(userLowId))
+                .filter(dialog -> dialog.userHighId().equals(userHighId))
+                .findFirst();
+        }
+
+        @Override
         public StoredFriendshipRequest createFriendshipRequest(NewFriendshipRequestRecord request) {
             if (findPendingFriendRequest(request.requesterUserId(), request.recipientUserId()).isPresent()) {
                 throw new DuplicatePendingFriendRequestException(null);
@@ -421,6 +523,21 @@ class DefaultContactsServiceTests {
                 block.createdAt()
             );
             userBlocks.put(stored.id(), stored);
+            return stored;
+        }
+
+        @Override
+        public StoredDirectDialog createDirectDialog(NewDirectDialogRecord dialog) {
+            if (findDirectDialog(dialog.userLowId(), dialog.userHighId()).isPresent()) {
+                throw new DuplicateDirectDialogException(null);
+            }
+            StoredDirectDialog stored = new StoredDirectDialog(
+                dialog.id(),
+                dialog.userLowId(),
+                dialog.userHighId(),
+                dialog.createdAt()
+            );
+            directDialogs.put(stored.id(), stored);
             return stored;
         }
 
@@ -481,6 +598,19 @@ class DefaultContactsServiceTests {
             userBlocks.entrySet().removeIf(entry ->
                 entry.getValue().blockerUserId().equals(blockerUserId)
                     && entry.getValue().blockedUserId().equals(blockedUserId)
+            );
+        }
+
+        @Override
+        public void deleteRelationshipsForDeletedUser(UUID userId) {
+            friendshipRequests.entrySet().removeIf(entry ->
+                entry.getValue().requesterUserId().equals(userId) || entry.getValue().recipientUserId().equals(userId)
+            );
+            friendships.entrySet().removeIf(entry ->
+                entry.getValue().userLowId().equals(userId) || entry.getValue().userHighId().equals(userId)
+            );
+            userBlocks.entrySet().removeIf(entry ->
+                entry.getValue().blockerUserId().equals(userId) || entry.getValue().blockedUserId().equals(userId)
             );
         }
 
@@ -574,10 +704,34 @@ class DefaultContactsServiceTests {
             return findFriendship(pair.lowUserId(), pair.highUserId());
         }
 
+        Optional<StoredDirectDialog> findDirectDialogForUsers(UUID firstUserId, UUID secondUserId) {
+            OrderedContactPair pair = OrderedContactPair.of(firstUserId, secondUserId);
+            return findDirectDialog(pair.lowUserId(), pair.highUserId());
+        }
+
         List<StoredFriendshipRequest> pendingRequests() {
             return friendshipRequests.values().stream()
                 .filter(request -> request.status() == FriendshipRequestStatus.PENDING)
                 .toList();
+        }
+
+        long directDialogCount() {
+            return directDialogs.size();
+        }
+
+        boolean hasAnyFriendshipInvolving(UUID userId) {
+            return friendships.values().stream()
+                .anyMatch(friendship -> friendship.userLowId().equals(userId) || friendship.userHighId().equals(userId));
+        }
+
+        boolean hasAnyRequestInvolving(UUID userId) {
+            return friendshipRequests.values().stream()
+                .anyMatch(request -> request.requesterUserId().equals(userId) || request.recipientUserId().equals(userId));
+        }
+
+        boolean hasAnyBlockInvolving(UUID userId) {
+            return userBlocks.values().stream()
+                .anyMatch(block -> block.blockerUserId().equals(userId) || block.blockedUserId().equals(userId));
         }
 
         void addUser(StoredContactUser user) {

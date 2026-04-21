@@ -65,9 +65,11 @@ class SecurityConfiguration {
                 .requestMatchers(
                     "/app",
                     "/app/contacts",
+                    "/app/direct-dialogs/**",
                     "/app/sessions",
                     "/app.html",
                     "/contacts.html",
+                    "/direct-dialog.html",
                     "/sessions.html"
                 ).authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/bootstrap").permitAll()

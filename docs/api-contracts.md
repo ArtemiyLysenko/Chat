@@ -41,7 +41,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `POST` | `/api/auth/password/change` | Change password for current user | Returns `204`, requires current authenticated session, keeps that session active, and revokes all other sessions |
 | `POST` | `/api/auth/password/reset-requests` | Request a password reset token | Returns `202` even for unknown email; local and test profiles log the raw reset URL once |
 | `POST` | `/api/auth/password/reset` | Consume password reset token | Returns `204`, invalidates outstanding reset tokens, and revokes all sessions after success |
-| `DELETE` | `/api/account` | Delete current account | Returns `204`, clears the current session cookie, tombstones the identity, deletes owned rooms, removes memberships in non-owned rooms, clears room invites created by or for the user, removes bans targeting the user, and leaves later messaging-side cleanup for later milestones |
+| `DELETE` | `/api/account` | Delete current account | Returns `204`, clears the current session cookie, tombstones the identity, deletes owned rooms, removes memberships in non-owned rooms, clears room invites created by or for the user, removes bans targeting the user, removes friend requests, friendships, and user blocks involving the deleted user, preserves `direct_dialogs` rows for later history linkage, and leaves message or attachment cleanup to later milestones |
 
 ### Browser UI Routes
 
@@ -53,6 +53,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | `/password-reset/request` | unauthenticated only | Static password reset request page |
 | `/password-reset/consume` | unauthenticated only | Static password reset consume page |
 | `/app` | authenticated only | Static authenticated shell page |
+| `/app/direct-dialogs/{userId}` | authenticated only | Dedicated direct-dialog placeholder page that ensures or reuses the stable direct-dialog identity for one eligible friend pair |
 | `/app/sessions` | authenticated only | Static active-session management page |
 
 ### Rooms And Moderation
@@ -75,20 +76,19 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 
 ### Contacts And Direct Messaging
 
-Milestone 3 is being delivered in slices.
-Milestone 3.2 currently ships the contacts list plus friend-request create, accept, reject, remove-friend, and block or unblock flows.
-Direct-dialog ensure or lookup remains reserved for Milestone 3.3 and is not yet implemented.
+Milestone 3 is complete across slices 3.1 through 3.3.
+The implemented contacts surface now includes friend-request create, accept, reject, remove-friend, block or unblock, and direct-dialog ensure-or-fetch behavior plus the dedicated placeholder page.
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/contacts` | List friends, pending requests, and block state | Milestone 3.2 returns `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and a populated `blockedUsers` section when the caller has active blocks |
-| `POST` | `/api/friend-requests` | Create friend request by username or user id | Milestone 3.2 requires exactly one of `userId` or `username`, supports optional `messageText`, auto-accepts the opposite-direction pending request when one already exists, and denies new requests while either user has blocked the other |
-| `POST` | `/api/friend-requests/{requestId}/accept` | Accept friend request | Milestone 3.2 recipient-only action that creates the friendship relation |
-| `POST` | `/api/friend-requests/{requestId}/reject` | Reject friend request | Milestone 3.2 recipient-only action that marks the request rejected and keeps no direct-dialog eligibility |
-| `DELETE` | `/api/contacts/{userId}` | Remove a friend | Milestone 3.2 removes the active friendship only; it does not create a block and does not create a direct dialog |
-| `PUT` | `/api/blocks/{userId}` | Block a user | Milestone 3.2 rejects self-blocks, removes any active friendship immediately, retires any pending friend request between the pair, and makes the pair ineligible for new direct messages while the block is active |
-| `DELETE` | `/api/blocks/{userId}` | Remove a block | Milestone 3.2 removes only the caller's directional block; it does not restore friendship automatically |
-| `POST` | `/api/direct-dialogs/{userId}` | Ensure or fetch the direct dialog with a friend | Reserved for Milestone 3.3; not implemented in Milestone 3.2 |
+| `GET` | `/api/contacts` | List friends, pending requests, and block state | Returns `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and a populated `blockedUsers` section when the caller has active blocks |
+| `POST` | `/api/friend-requests` | Create friend request by username or user id | Requires exactly one of `userId` or `username`, supports optional `messageText`, auto-accepts the opposite-direction pending request when one already exists, and denies new requests while either user has blocked the other |
+| `POST` | `/api/friend-requests/{requestId}/accept` | Accept friend request | Recipient-only action that creates the friendship relation |
+| `POST` | `/api/friend-requests/{requestId}/reject` | Reject friend request | Recipient-only action that marks the request rejected and keeps no direct-dialog eligibility |
+| `DELETE` | `/api/contacts/{userId}` | Remove a friend | Removes the active friendship only; it does not create a block and it does not delete an existing direct dialog |
+| `PUT` | `/api/blocks/{userId}` | Block a user | Rejects self-blocks, removes any active friendship immediately, retires any pending friend request between the pair, preserves any existing direct dialog, and makes the pair ineligible for new direct messages while the block is active |
+| `DELETE` | `/api/blocks/{userId}` | Remove a block | Removes only the caller's directional block; it does not restore friendship automatically |
+| `POST` | `/api/direct-dialogs/{userId}` | Ensure or fetch the direct dialog with a friend | Returns `201` when the dialog row is created and `200` when an existing row is reused. The pair must currently have an active friendship and no block in either direction. Existing dialog ids stay stable after later friendship removal, block, unblock, or account deletion |
 
 ### Messaging, History, And Read State
 

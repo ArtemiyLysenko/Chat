@@ -14,6 +14,8 @@ import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
 
 interface FriendshipRequestJpaRepository extends JpaRepository<FriendshipRequestEntity, UUID> {
 
+    long deleteByRequesterUserIdOrRecipientUserId(UUID requesterUserId, UUID recipientUserId);
+
     Optional<FriendshipRequestEntity> findByRequesterUserIdAndRecipientUserIdAndStatus(
         UUID requesterUserId,
         UUID recipientUserId,

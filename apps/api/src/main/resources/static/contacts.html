@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-  <head>
+    <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chat | Contacts</title>
@@ -13,7 +13,7 @@
         <header class="shell-header">
           <div class="shell-brand">
             <strong>Chat contacts</strong>
-            <span class="subtle">Milestone 3.2 adds remove-friend, block, unblock, and shared direct-message eligibility rules.</span>
+            <span class="subtle">Milestone 3.3 completes stable direct-dialog identity and preserves messaging work for Milestone 4.</span>
           </div>
           <nav class="nav-links">
             <a href="/app">Rooms</a>
@@ -54,11 +54,12 @@
               </section>
 
               <section class="panel">
-                <h3>Milestone 3.2 notes</h3>
+                <h3>Milestone 3.3 notes</h3>
                 <ul class="notes">
                   <li>Reverse-direction requests auto-accept the existing pending request.</li>
-                  <li>Blocking removes existing friendship and hides the pair from accepted or pending sections.</li>
-                  <li>Unblocking removes the block only; friendship and direct dialogs stay deferred.</li>
+                  <li>Open dialog placeholder creates or reuses one stable direct-dialog identity per ordered user pair.</li>
+                  <li>Blocking or removing a friend preserves an existing direct-dialog identity, but new messaging stays ineligible.</li>
+                  <li>Milestone 4 will add actual direct-message sending and history.</li>
                 </ul>
               </section>
             </aside>
@@ -66,7 +67,7 @@
             <div class="stack">
               <section class="panel">
                 <h2>Accepted friends</h2>
-                <p>These relationships are the only pairs currently eligible for future direct dialogs when no block exists.</p>
+                <p>These relationships are the only pairs currently eligible to ensure or reopen a stable direct-dialog placeholder when no block exists.</p>
                 <div class="message" data-contacts-message></div>
                 <div class="room-list" data-friends-list></div>
               </section>
