@@ -1,0 +1,84 @@
+package edu.artemiy.chat.adapters.persistence.jpa.contacts;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import edu.artemiy.chat.contacts.spi.FriendshipRequestStatus;
+
+interface FriendshipRequestJpaRepository extends JpaRepository<FriendshipRequestEntity, UUID> {
+
+    Optional<FriendshipRequestEntity> findByRequesterUserIdAndRecipientUserIdAndStatus(
+        UUID requesterUserId,
+        UUID recipientUserId,
+        FriendshipRequestStatus status
+    );
+
+    Optional<FriendshipRequestEntity> findByIdAndRecipientUserIdAndStatus(
+        UUID id,
+        UUID recipientUserId,
+        FriendshipRequestStatus status
+    );
+
+    @Query(
+        value = """
+            select
+                r.id as requestId,
+                r.requester_user_id as otherUserId,
+                u.username as otherUsername,
+                u.display_name as otherDisplayName,
+                u.deleted_at as otherDeletedAt,
+                r.message_text as messageText,
+                r.created_at as createdAt
+            from friendship_requests r
+            join users u on u.id = r.requester_user_id
+            where r.recipient_user_id = :userId
+              and r.status = 'PENDING'
+            order by r.created_at desc, r.id desc
+            """,
+        nativeQuery = true
+    )
+    List<PendingFriendRequestProjection> findInboundPendingRequests(@Param("userId") UUID userId);
+
+    @Query(
+        value = """
+            select
+                r.id as requestId,
+                r.recipient_user_id as otherUserId,
+                u.username as otherUsername,
+                u.display_name as otherDisplayName,
+                u.deleted_at as otherDeletedAt,
+                r.message_text as messageText,
+                r.created_at as createdAt
+            from friendship_requests r
+            join users u on u.id = r.recipient_user_id
+            where r.requester_user_id = :userId
+              and r.status = 'PENDING'
+            order by r.created_at desc, r.id desc
+            """,
+        nativeQuery = true
+    )
+    List<PendingFriendRequestProjection> findOutboundPendingRequests(@Param("userId") UUID userId);
+
+    interface PendingFriendRequestProjection {
+
+        UUID getRequestId();
+
+        UUID getOtherUserId();
+
+        String getOtherUsername();
+
+        String getOtherDisplayName();
+
+        Instant getOtherDeletedAt();
+
+        String getMessageText();
+
+        Instant getCreatedAt();
+    }
+}

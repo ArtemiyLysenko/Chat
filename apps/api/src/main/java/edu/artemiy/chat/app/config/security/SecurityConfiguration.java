@@ -62,7 +62,14 @@ class SecurityConfiguration {
                     "/favicon.ico"
                 ).permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/app", "/app/sessions", "/app.html", "/sessions.html").authenticated()
+                .requestMatchers(
+                    "/app",
+                    "/app/contacts",
+                    "/app/sessions",
+                    "/app.html",
+                    "/contacts.html",
+                    "/sessions.html"
+                ).authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/bootstrap").permitAll()
                 .requestMatchers(
                     HttpMethod.POST,

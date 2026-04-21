@@ -1,15 +1,13 @@
 package edu.artemiy.chat.identity.domain;
 
-import java.text.Normalizer;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
+import edu.artemiy.chat.core.kernel.UsernameRules;
 import edu.artemiy.chat.identity.api.IdentityErrorType;
 import edu.artemiy.chat.identity.api.IdentityException;
 
 public final class CredentialRules {
 
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-z0-9._-]{3,32}$");
     private static final int PASSWORD_MIN_LENGTH = 8;
     private static final int PASSWORD_MAX_LENGTH = 72;
 
@@ -26,16 +24,23 @@ public final class CredentialRules {
     }
 
     public static String normalizeUsername(String username) {
-        String normalized = Normalizer.normalize(requireText(username, "username", "Username is required."), Normalizer.Form.NFKC)
-            .toLowerCase(Locale.ROOT);
-        if (!USERNAME_PATTERN.matcher(normalized).matches()) {
-            throw new IdentityException(
-                "identity.invalid_username",
-                "Username must use 3 to 32 lowercase letters, digits, dots, dashes, or underscores.",
-                IdentityErrorType.BAD_REQUEST
-            );
+        try {
+            return UsernameRules.normalize(username);
         }
-        return normalized;
+        catch (UsernameRules.InvalidUsernameException exception) {
+            throw switch (exception.reason()) {
+                case MISSING -> new IdentityException(
+                    "identity.missing_username",
+                    exception.getMessage(),
+                    IdentityErrorType.BAD_REQUEST
+                );
+                case INVALID -> new IdentityException(
+                    "identity.invalid_username",
+                    exception.getMessage(),
+                    IdentityErrorType.BAD_REQUEST
+                );
+            };
+        }
     }
 
     public static void validatePassword(String password) {

@@ -24,12 +24,15 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 
 ### Contacts And Direct Messaging
 
+Milestone 3.1 currently implements only `friendship_requests` and `friendships`.
+`user_blocks` and `direct_dialogs` remain planned logical tables for later Milestone 3 slices and are not yet present in the schema.
+
 | Table | Key columns | Purpose |
 | --- | --- | --- |
 | `friendship_requests` | `id`, `requester_user_id`, `recipient_user_id`, `message_text`, `status`, `created_at`, `responded_at` | Pending inbound and outbound friend requests |
 | `friendships` | `id`, `user_low_id`, `user_high_id`, `created_at` | Active symmetric friendship relation |
-| `user_blocks` | `id`, `blocker_user_id`, `blocked_user_id`, `created_at` | Prevents new contact and direct messages |
-| `direct_dialogs` | `id`, `user_low_id`, `user_high_id`, `created_at`, `last_message_at` | Stable direct chat identity per user pair |
+| `user_blocks` | `id`, `blocker_user_id`, `blocked_user_id`, `created_at` | Planned later Milestone 3 table for preventing new contact and direct messages |
+| `direct_dialogs` | `id`, `user_low_id`, `user_high_id`, `created_at`, `last_message_at` | Planned later Milestone 3 table for the stable direct chat identity per user pair |
 
 ### Rooms And Moderation
 
@@ -61,7 +64,9 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 ## Integrity Rules
 - `users.email` and `users.username` must be globally unique.
 - `rooms.name` must be globally unique.
-- `friendships` and `direct_dialogs` must be unique per ordered user pair.
+- `friendship_requests` must reject duplicate pending requests in the same direction.
+- `friendships` must be unique per ordered user pair.
+- `direct_dialogs` must be unique per ordered user pair once that table lands in a later Milestone 3 slice.
 - `room_memberships` must be unique per active room and user pair.
 - `room_bans` must be unique per active room and user pair.
 - `messages` must reference exactly one target: either `room_id` or `direct_dialog_id`.
@@ -75,10 +80,13 @@ PostgreSQL is the authoritative store for durable application state. The filesys
 - `password_reset_tokens(token_hash)` unique
 - `user_sessions(user_id, revoked_at, expires_at)`
 - `session_tabs(session_id, tab_key)` unique and `session_tabs(last_ping_at)`
+- `friendship_requests(requester_user_id, status, created_at)`
+- `friendship_requests(recipient_user_id, status, created_at)`
+- partial unique `friendship_requests(requester_user_id, recipient_user_id)` where status is `PENDING`
+- `friendships(user_low_id, user_high_id)` unique
 - `rooms(visibility, name)`
 - `room_memberships(room_id, user_id)` unique
 - `room_bans(room_id, user_id)` unique
-- `friendships(user_low_id, user_high_id)` unique
 - `user_blocks(blocker_user_id, blocked_user_id)` unique
 - `direct_dialogs(user_low_id, user_high_id)` unique
 - `messages(room_id, created_at, id)` for room history

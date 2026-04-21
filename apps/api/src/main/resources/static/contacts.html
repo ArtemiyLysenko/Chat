@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat | Contacts</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script type="module" src="/js/contacts-page.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="shell">
+        <header class="shell-header">
+          <div class="shell-brand">
+            <strong>Chat contacts</strong>
+            <span class="subtle">Milestone 3.1 adds friendship requests, acceptance, rejection, and a dedicated contacts view.</span>
+          </div>
+          <nav class="nav-links">
+            <a href="/app">Rooms</a>
+            <a href="/app/contacts">Contacts</a>
+            <a href="/app/sessions">Sessions</a>
+            <button class="secondary" type="button" data-logout-button>Sign out</button>
+          </nav>
+        </header>
+        <div class="shell-body">
+          <div class="dashboard">
+            <aside class="stack">
+              <section class="panel">
+                <div class="split">
+                  <div>
+                    <h2>Request friendship</h2>
+                    <p>Submit a request by username or by user id. Fill one target field only.</p>
+                  </div>
+                  <button class="secondary" type="button" data-refresh-contacts-button>Refresh</button>
+                </div>
+                <form class="form-grid" data-create-request-form>
+                  <label>
+                    Username
+                    <input type="text" name="username" placeholder="captain" maxlength="32" />
+                  </label>
+                  <label>
+                    User id
+                    <input type="text" name="userId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                  </label>
+                  <label>
+                    Message
+                    <textarea name="messageText" rows="3" placeholder="Optional note for the recipient"></textarea>
+                  </label>
+                  <div class="actions">
+                    <button type="submit">Send request</button>
+                  </div>
+                </form>
+                <div class="message" data-create-request-message></div>
+              </section>
+
+              <section class="panel">
+                <h3>Milestone 3.1 notes</h3>
+                <ul class="notes">
+                  <li>Reverse-direction requests auto-accept the existing pending request.</li>
+                  <li>Accepted friends, inbound requests, and outbound requests load from one contacts endpoint.</li>
+                  <li>Blocks and direct dialogs remain deferred to later Milestone 3 slices.</li>
+                </ul>
+              </section>
+            </aside>
+
+            <div class="stack">
+              <section class="panel">
+                <h2>Accepted friends</h2>
+                <p>These relationships are ready for later direct-dialog eligibility work.</p>
+                <div class="message" data-contacts-message></div>
+                <div class="room-list" data-friends-list></div>
+              </section>
+
+              <div class="detail-columns">
+                <section class="detail-card">
+                  <h3>Inbound pending</h3>
+                  <p>Accept or reject requests addressed to the current user.</p>
+                  <div class="member-list" data-inbound-requests-list></div>
+                </section>
+
+                <section class="detail-card">
+                  <h3>Outbound pending</h3>
+                  <p>These requests are still waiting for the other user to respond.</p>
+                  <div class="member-list" data-outbound-requests-list></div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

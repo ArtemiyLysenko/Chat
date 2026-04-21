@@ -294,7 +294,8 @@ select:focus {
 .session-item,
 .room-card,
 .member-item,
-.ban-item {
+.ban-item,
+.contact-card {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 247, 237, 0.68);
@@ -373,7 +374,8 @@ ul.notes {
 
 .room-card .actions,
 .member-item .actions,
-.ban-item .actions {
+.ban-item .actions,
+.contact-card .actions {
   margin-top: 14px;
 }
 

@@ -38,6 +38,11 @@ class UiRoutingController {
         return protectedPage(authentication, "forward:/app.html");
     }
 
+    @GetMapping("/app/contacts")
+    String contacts(Authentication authentication) {
+        return protectedPage(authentication, "forward:/contacts.html");
+    }
+
     @GetMapping("/app/sessions")
     String sessions(Authentication authentication) {
         return protectedPage(authentication, "forward:/sessions.html");

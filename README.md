@@ -16,8 +16,8 @@ The target product is a classic web chat application with:
 - admin screens for Jabber connections and federation traffic
 
 ## Current Status
-Milestone 2 is completed and verified.
-The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, and rooms-side account deletion cleanup inside the authenticated shell.
+Milestone 3.1 is completed and verified.
+The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, and a dedicated contacts page with accepted plus pending relationship state.
 
 ## Repository Layout
 - `apps/api` Spring Boot application and initial web delivery
@@ -66,4 +66,4 @@ See:
 - If you need interactive database access, use `docker compose exec db psql -U ${POSTGRES_USER:-chat} -d ${POSTGRES_DB:-chat}` from the repository root.
 
 ## Immediate Next Step
-Implement Milestone 3 friendships, blocks, and direct-dialog eligibility on top of the verified identity and rooms foundation.
+Implement the remaining Milestone 3 slices for remove-friend, block and unblock behavior, contacts-side account-deletion cleanup, and direct-dialog eligibility on top of the verified Milestone 3.1 contacts foundation.

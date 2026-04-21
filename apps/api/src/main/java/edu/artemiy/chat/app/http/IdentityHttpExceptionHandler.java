@@ -11,6 +11,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import edu.artemiy.chat.contacts.api.ContactsErrorType;
+import edu.artemiy.chat.contacts.api.ContactsException;
 import edu.artemiy.chat.identity.api.IdentityErrorType;
 import edu.artemiy.chat.identity.api.IdentityException;
 import edu.artemiy.chat.rooms.api.RoomsErrorType;
@@ -27,6 +29,12 @@ class IdentityHttpExceptionHandler {
 
     @ExceptionHandler(RoomsException.class)
     ResponseEntity<ErrorResponse> handleRoomsException(RoomsException exception) {
+        return ResponseEntity.status(httpStatus(exception.errorType()))
+            .body(new ErrorResponse(exception.code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(ContactsException.class)
+    ResponseEntity<ErrorResponse> handleContactsException(ContactsException exception) {
         return ResponseEntity.status(httpStatus(exception.errorType()))
             .body(new ErrorResponse(exception.code(), exception.getMessage()));
     }
@@ -54,6 +62,15 @@ class IdentityHttpExceptionHandler {
     }
 
     private static HttpStatusCode httpStatus(RoomsErrorType errorType) {
+        return switch (errorType) {
+            case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+        };
+    }
+
+    private static HttpStatusCode httpStatus(ContactsErrorType errorType) {
         return switch (errorType) {
             case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;

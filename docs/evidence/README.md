@@ -22,4 +22,5 @@ Store milestone evidence in this directory as dated Markdown notes, screenshots,
 - `2026-04-20-mandatory-jabber-scope-evidence.md` captures the later scope decision that made the advanced Jabber and federation requirements mandatory.
 - `2026-04-20-milestone-1-evidence.md` captures the executable Milestone 1 identity, session, security, and compose verification results.
 - `2026-04-21-milestone-2-evidence.md` captures the verified Milestone 2 rooms, moderation, account-deletion cleanup, and browser-proof package, including the saved room-flow screenshots.
+- `2026-04-21-milestone-3-1-evidence.md` captures the verified Milestone 3.1 contacts slice, including friend-request lifecycle coverage, contacts API checks, and saved browser screenshots for the dedicated contacts page.
 - `2026-04-21-b3-xmpp-path-spike.md` narrows the mandatory XMPP implementation bet for Milestone 7 while keeping it aligned with ADR 0005.
