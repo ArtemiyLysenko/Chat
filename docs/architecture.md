@@ -32,7 +32,7 @@ It builds on ADR 0001 and should be read together with:
 - `modules/core/*` contains shared technical primitives and test support.
 - `modules/features/*` contains feature-local `api`, `domain`, `application`, `spi`, and `internal` packages.
 - `modules/adapters/*` contains persistence, filesystem, and XMPP adapter implementations.
-- `tools/load-tests/federation` contains federation validation scaffolding for the required two-node load scenario.
+- `tools/load-tests/federation` contains the repeatable federation validation harness for the required two-node load scenario.
 
 ## Architected Domains
 
@@ -85,7 +85,7 @@ It builds on ADR 0001 and should be read together with:
 8. Federated server traffic
    Milestone 7 also extends the same in-process adapter to a narrow two-node federation slice for one-to-one direct messages. Each node now persists `xmpp_client_sessions`, `federation_peers`, and `federation_traffic_samples`, blocked or otherwise ineligible federated direct messages surface protocol-level denials without marking a reachable peer down, and the current v1 mapping still uses mirrored local usernames on both nodes so inbound federated messages can reuse the existing direct-dialog eligibility and persistence rules without introducing a separate remote-identity table.
 9. Jabber administration and federation insight
-   Administrators can inspect current Jabber/XMPP connections and federation traffic statistics from the web UI without leaving the governed application surface.
+   Milestone 8 is complete. Administrators can inspect current Jabber/XMPP connections and federation traffic statistics from the web UI without leaving the governed application surface, and the repeatable two-node harness has now proven 50 connected clients per side with zero federated delivery failures on the governed in-process path.
 
 ## Delivery Sequence
 The architected implementation order is fixed for the MVP:
@@ -101,7 +101,8 @@ The architected implementation order is fixed for the MVP:
 Each slice must leave behind updated docs, fresh validation evidence under `docs/evidence/`, and a bet or ADR review before the next slice starts. Detailed exit criteria live in `docs/mvp-delivery-plan.md` and `docs/governance/checklist.md`.
 
 ## Current Bets
-- B3 now tracks whether the Milestone 7-complete in-process XMPP path can meet the required Milestone 8.2 two-node 50-plus-clients-per-side load validation without introducing a companion XMPP server.
+- No active architecture bets remain for the currently scoped MVP.
 
 ## Resolved Bet Notes
 - B2 is resolved by Milestone 6.2 evidence in favor of PostgreSQL plus in-process live state. Two-tab and two-browser probes stayed well under the two-second propagation target without introducing Redis.
+- B3 is resolved by Milestone 8.2 evidence in favor of the existing in-process XMPP path. The governed two-node compose topology handled 50 connected clients per side and 100 federated direct-message deliveries with zero transport failures while keeping the root single-node compose workflow unchanged.

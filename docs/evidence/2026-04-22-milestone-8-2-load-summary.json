@@ -1,0 +1,55 @@
+{
+  "runId": "milestone82",
+  "startedAt": "2026-04-22T10:06:59.741510Z",
+  "finishedAt": "2026-04-22T10:07:35.068416Z",
+  "clientCountPerSide": 50,
+  "outputPath": "docs/evidence/2026-04-22-milestone-8-2-load-summary.json",
+  "nodeA": {
+    "label": "A",
+    "httpBaseUrl": "http://localhost:8081",
+    "xmppHost": "127.0.0.1",
+    "xmppPort": 5223,
+    "xmppDomain": "node-a.local"
+  },
+  "nodeB": {
+    "label": "B",
+    "httpBaseUrl": "http://localhost:8082",
+    "xmppHost": "127.0.0.1",
+    "xmppPort": 5224,
+    "xmppDomain": "node-b.local"
+  },
+  "provisionedUsersPerNode": 100,
+  "connectedClientsOnNodeA": 50,
+  "connectedClientsOnNodeB": 50,
+  "aToB": {
+    "direction": "A_TO_B",
+    "attempted": 50,
+    "succeeded": 50,
+    "failed": 0,
+    "latency": {
+      "minMillis": 101.00,
+      "p50Millis": 175.00,
+      "p95Millis": 337.00,
+      "p99Millis": 348.00,
+      "maxMillis": 348.00,
+      "averageMillis": 193.22
+    }
+  },
+  "bToA": {
+    "direction": "B_TO_A",
+    "attempted": 50,
+    "succeeded": 50,
+    "failed": 0,
+    "latency": {
+      "minMillis": 117.00,
+      "p50Millis": 201.00,
+      "p95Millis": 388.00,
+      "p99Millis": 421.00,
+      "maxMillis": 421.00,
+      "averageMillis": 228.18
+    }
+  },
+  "notes": [
+    "Each pair uses mirrored usernames on both nodes because the current federation mapping reuses local direct-message eligibility on both sides.",
+    "Provisioning uses the governed HTTP registration, login, and friend-request flows. Message delivery uses XMPP only."
+  ]}

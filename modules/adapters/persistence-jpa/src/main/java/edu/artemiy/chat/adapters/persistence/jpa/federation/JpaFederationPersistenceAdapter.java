@@ -82,7 +82,7 @@ class JpaFederationPersistenceAdapter implements FederationPersistencePort {
         Instant lastErrorAt,
         String configJson
     ) {
-        FederationPeerEntity entity = getOrCreatePeer(peerDomain, configJson);
+        FederationPeerEntity entity = getOrCreatePeerForUpdate(peerDomain, configJson);
         entity.setStatus(status.name());
         if (lastConnectedAt != null) {
             entity.setLastConnectedAt(latest(entity.getLastConnectedAt(), lastConnectedAt));
@@ -108,18 +108,17 @@ class JpaFederationPersistenceAdapter implements FederationPersistencePort {
         long errorDelta,
         Instant sampledAt
     ) {
-        FederationPeerEntity peer = getOrCreatePeer(peerDomain, configJson);
-        FederationTrafficSampleEntity latestSample = federationTrafficSampleJpaRepository.findFirstByPeer_IdOrderBySampledAtDesc(peer.getId())
-            .orElse(null);
+        FederationPeerEntity peer = getOrCreatePeerForUpdate(peerDomain, configJson);
+        FederationTrafficTotals currentTotals = federationTrafficSampleJpaRepository.findTotalsByPeerId(peer.getId());
         federationTrafficSampleJpaRepository.saveAndFlush(new FederationTrafficSampleEntity(
             UUID.randomUUID(),
             peer,
             sampledAt,
-            (latestSample == null ? 0 : latestSample.getInboundMessages()) + inboundMessagesDelta,
-            (latestSample == null ? 0 : latestSample.getOutboundMessages()) + outboundMessagesDelta,
-            (latestSample == null ? 0 : latestSample.getInboundStanzas()) + inboundStanzasDelta,
-            (latestSample == null ? 0 : latestSample.getOutboundStanzas()) + outboundStanzasDelta,
-            (latestSample == null ? 0 : latestSample.getErrorCount()) + errorDelta
+            currentTotals.getInboundMessages() + inboundMessagesDelta,
+            currentTotals.getOutboundMessages() + outboundMessagesDelta,
+            currentTotals.getInboundStanzas() + inboundStanzasDelta,
+            currentTotals.getOutboundStanzas() + outboundStanzasDelta,
+            currentTotals.getErrorCount() + errorDelta
         ));
     }
 
@@ -166,17 +165,16 @@ class JpaFederationPersistenceAdapter implements FederationPersistencePort {
             .toList();
     }
 
-    private FederationPeerEntity getOrCreatePeer(String peerDomain, String configJson) {
+    private FederationPeerEntity getOrCreatePeerForUpdate(String peerDomain, String configJson) {
         String normalizedPeerDomain = requiredText(peerDomain, "peerDomain").toLowerCase(Locale.ROOT);
-        return federationPeerJpaRepository.findByPeerDomain(normalizedPeerDomain)
-            .orElseGet(() -> federationPeerJpaRepository.saveAndFlush(new FederationPeerEntity(
-                UUID.randomUUID(),
-                normalizedPeerDomain,
-                FederationPeerStatus.DEGRADED.name(),
-                null,
-                null,
-                configJson == null || configJson.isBlank() ? "{}" : configJson
-            )));
+        federationPeerJpaRepository.insertIfAbsent(
+            UUID.randomUUID(),
+            normalizedPeerDomain,
+            FederationPeerStatus.DEGRADED.name(),
+            defaultConfigJson(configJson)
+        );
+        return federationPeerJpaRepository.findByPeerDomainForUpdate(normalizedPeerDomain)
+            .orElseThrow(() -> new IllegalStateException("Federation peer should exist after insertIfAbsent."));
     }
 
     private static Instant requiredConnectedAt(XmppClientSessionRecord record) {
@@ -198,6 +196,10 @@ class JpaFederationPersistenceAdapter implements FederationPersistencePort {
 
     private static String normalizedText(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private static String defaultConfigJson(String configJson) {
+        return configJson == null || configJson.isBlank() ? "{}" : configJson;
     }
 
     private static Instant latest(Instant currentValue, Instant candidate) {

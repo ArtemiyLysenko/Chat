@@ -30,6 +30,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: chat
       CHAT_STORAGE_ROOT: /app/storage
       CHAT_AUTH_SECURE_COOKIE: "false"
+      CHAT_AUTH_ADMIN_USERNAMES: ${CHAT_AUTH_ADMIN_USERNAMES:-}
       CHAT_XMPP_ENABLED: "true"
       CHAT_XMPP_DOMAIN: node-a.local
       CHAT_XMPP_PORT: 5222
@@ -74,6 +75,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: chat
       CHAT_STORAGE_ROOT: /app/storage
       CHAT_AUTH_SECURE_COOKIE: "false"
+      CHAT_AUTH_ADMIN_USERNAMES: ${CHAT_AUTH_ADMIN_USERNAMES:-}
       CHAT_XMPP_ENABLED: "true"
       CHAT_XMPP_DOMAIN: node-b.local
       CHAT_XMPP_PORT: 5222

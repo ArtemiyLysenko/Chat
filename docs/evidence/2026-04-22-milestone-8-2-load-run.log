@@ -1,0 +1,47 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+
+> Task :build-logic:compileKotlin UP-TO-DATE
+Kotlin does not yet support 25 JDK target, falling back to Kotlin JVM_24 JVM target
+
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Configure project :apps:api
+Kotlin does not yet support 25 JDK target, falling back to Kotlin JVM_24 JVM target
+
+> Task :tools:load-tests:federation:compileJava UP-TO-DATE
+> Task :tools:load-tests:federation:processResources NO-SOURCE
+> Task :tools:load-tests:federation:classes UP-TO-DATE
+
+> Task :tools:load-tests:federation:run
+Starting federation load run milestone82 with 50 client pairs (50 connected clients per side).
+Provisioning node A users over HTTP http://localhost:8081
+Provisioning node B users over HTTP http://localhost:8082
+Creating friendships on node A
+Creating friendships on node B
+Opening 50 XMPP clients against node A (127.0.0.1:5223)
+Opening 50 XMPP clients against node B (127.0.0.1:5224)
+Running direction A_TO_B with 50 sends
+Running direction B_TO_A with 50 sends
+Federation load run milestone82
+  clients per side: 50
+  provisioned users per node: 100
+  connected clients: node A 50, node B 50
+  A->B: 50/50 succeeded, p95 337 ms, failures 0
+  B->A: 50/50 succeeded, p95 388 ms, failures 0
+
+Wrote load summary to /Users/artemiy/Projects/Chat/docs/evidence/2026-04-22-milestone-8-2-load-summary.json
+
+BUILD SUCCESSFUL in 41s
+11 actionable tasks: 1 executed, 10 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.0/userguide/configuration_cache_enabling.html
