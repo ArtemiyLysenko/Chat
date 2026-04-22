@@ -1,0 +1,1417 @@
+I am taking part in a hackathone.
+
+The main idea of the hackatone is to develop a web application using an AI coding agent as the main software architect and developer, so a human should write as less code as possible.
+The Agentic Development Lifecycle (ADLC) should be followed - find information about it on https://www.adlc.io/ page.
+
+Hackathon organizer have provided me with the task description (2026_04_18_AI_herders_jam_-_requirements_v3 1.docx).
+
+I have choosen you as my AI coding agent, because you have all the needed skills and superpowers to implement an excellent solution.
+This project will be shared via my personal GitHub account "ArtemiyLysenko".
+
+Instructions:
+
+1. Setup all needed Codex infrustructure in the projects folder "Chat".
+
+2. Do the review of the changes made.
+
+3. The solution should be based on Java 25, Gradle, Spring Boot, and should use PostgreSQL. This should be mirrored in a corresponding ADR.
+
+4. Implement Gradle Versions Catalogue and Conventions Plugins. Use Kotlin for scripting instead of Groovy. Double-check the changes.
+
+5. Use the latest stable versions of dependencies. Enable Gradle parallel execution and caching. 
+
+6. Verify using Docker.
+
+7. As the Solutions Architect of the project create a plan of Solution Architect work.
+
+8. Implement plan.
+
+9. 6. Advanced requirements
+If you manage to implement requirements above quickly. Add additional feature: Jabber protocol support. This should include:
+1.	Users must be able to connect to the server using Jabber client (choose jabber protocol support level you can afford)
+2.	Servers must be able to support federation i.e. messages between servers (this will require more complicated setup in docker compose)
+3.	Use jabber library available for your tech stack.
+
+Most advanced possible implementation must include load test for federation of two servers:
+1.	50+ clients connected to one server - A, 50+ to another - B
+2.	Messaging from A to B and back.
+Note: with existing library this feature is rather integration than coding, but with AI agent it could be challenging.
+
+Also, you must add to server UI screens specific to Jabber
+1.	Connection dashboard for admin
+2.	Federation traffic info/statistics
+
+10. Which architecture approach would be the best for this project?
+
+11. Add the architecture approach as a separate ADR.
+
+12. What codebase structure would be the best fit for the selected project architecture?
+
+13. Review your answer. Can the codebase structure be improved? Make it to be perfect.
+
+14. Add this codebase structure as an ADR.
+
+15. Check if the project structure is ready to be commited to git? Review .gitignore file. If everything is ready to be commited - suggest a commit message.
+
+16. Plan the next steps.
+
+17. Review the suggested plan. Double-check the suggested plan.
+
+18. Would it be reasonable to create a separate implementation plan for each milestone?
+
+19. Create a full set of implementation plans according to your recommendations.
+These plans will be implemented by the most powerful and skillful AI coding agent - by you.
+So, these plans should be completely clear to you.
+Review and double-check the plans after they will be created.
+
+20. I want to start the implementation of each milestone in a separate chat (the same project inside Codex desktop). Write instructions for Codex for the milestone 1 implementation. 
+
+21. Make the relevant dependencies to be aligned with Spring Boot BOM. I think it would improve reliability.
+
+22. Introduce the appropriate logging system instead of using 'System.out.println'.
+
+23. Perform the code review.
+
+24. Fix found issues. Use the best practices.
+
+25. Milestone 1 is implemented. Review the implementation. Does it match the general plan?
+
+26. Create a plan for fixing Milestone 1 implementation issues with an each issue description.
+
+27. I have reviewd the changes made during Milestone 1 implementation.
+The Milestone 1 implementation mostly matches the general plan on the core feature slice.
+The remaining issues are architectural consistency, authorization hardening, and test-environment reproducibility, not a broad rework of the identity/session implementation.
+Fix these issues according to the following plan:...
+
+28. Fixes are applied to the Milestone 1 implementation. Perform the review again.
+
+29. Commit and push these changes to GitHub with the following commit message:
+"Milestone 1 issue fixes: Enforce one-time password reset token consumption under race,
+prevent direct unauthenticated access to protected static pages,
+and translate duplicate registration conflicts to stable 409
+identity errors instead of leaking persistence failures as 500s.
+
+Add regression coverage for reset-token consumption, protected
+HTML routes, duplicate identity persistence conflicts, admin
+endpoint denial, and the zero-config PostgreSQL Testcontainers
+test path. Reconcile the B3 XMPP spike with ADR 0005 and update
+the related milestone and evidence docs."
+
+30. Create a plan for Milestone 2 implementation. It will be implemented by Codex.
+
+31. Answers to your questions:
+1. a private-room invitee is allowed to load only a brief room details before joining (room name, room owner).
+2. Decide on your own according to the best practices.
+3. I did not catch the question - paraphrase it. In future add a couple of reply options to your questions.
+
+31. Ok, for the question 3 use the recommended approach.
+
+32. The Milestone 2 implementation was not completed due to GPT-5.4 model contex compacting issues (Error running remote compact task: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses/compact).
+Review the state of Milestone 2 implementation.
+Suggest further steps. Keep steps granular to fit into context window.
+
+33. Create a plan of Milestone 2 completion by Codex.
+
+34. Complete Milestone 2 for the Chat project.
+
+35. Verify that Milestone 2 is fully copleted.
+
+36. Commit all changed files to GitHub with the following commit message: "Milestone 2: Fix rooms moderation UI feedback and SPA CSRF handling" and push to origin.
+
+37. Create a plan for implementation of Milestone 3. The plan will be implemented by Codex.
+
+38. Break down the Milestone 3 scope into a 2 - 3 parts. These parts should be testable and verifiable. They will be implemented sequentially. This is needed to avoid possible context window issues.
+Name them like Milestone 3.1, 3.2, etc
+
+39. Implement Milestone 3.1 for the Chat project in ~/Projects/Chat.
+
+Follow the repo AGENTS instructions.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/docs/milestones/03-contacts-direct-dialogs.md
+- ~/Projects/Chat/docs/mvp-delivery-plan.md
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/bet-register.md
+- ~/Projects/Chat/docs/governance/checklist.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/README.md
+
+Build on the verified Milestone 1 and Milestone 2 foundation. Implement Milestone 3.1 only. Do not start Milestone 3.2 or 3.3.
+
+Milestone 3.1 scope:
+- friendship request creation by username or userId
+- friendship request acceptance
+- friendship request rejection
+- contacts list baseline with:
+  - accepted friends
+  - inbound pending requests
+  - outbound pending requests
+- locked opposite-direction auto-accept rule
+- dedicated contacts-focused static page linked from the main shell
+
+Out of scope for Milestone 3.1:
+- remove friend
+- block
+- unblock
+- direct dialogs
+- contacts-side account deletion cleanup
+- full Milestone 3 closeout
+- any Milestone 4+ work
+
+Hard constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep business logic in modules/features/contacts.
+- Keep JPA/Flyway persistence in modules/adapters/persistence-jpa.
+- Keep UI Spring Boot-served and static-asset based under apps/api/src/main/resources/static with vanilla JS only.
+- No Node toolchain.
+- No server-side template engine unless absolutely required by an existing repo constraint.
+- Use KISS, DRY, YAGNI.
+- Prefer modern Java 25 syntax and language features where they improve clarity without overcomplication.
+- Reuse the current auth/session/CSRF foundation and current error-handling pattern.
+- Use Playwright MCP where it is a reasonable fit for browser proof.
+
+Locked Milestone 3 decisions already approved:
+1. Duplicate cross-direction friend requests auto-convert into accepting the existing incoming request.
+2. Contacts UI must use a dedicated contacts-focused static page linked from the main shell.
+3. Blocked users will eventually be shown in a separate blocked-users subsection, but block behavior is not part of Milestone 3.1.
+
+Deliver the following concrete code changes:
+
+1. Contacts feature module baseline
+- Implement modules/features/contacts api, application, and spi packages for:
+  - create friend request
+  - accept friend request
+  - reject friend request
+  - list contact state
+- Keep DirectMessageEligibility as an existing shared type, but do not implement full direct-dialog behavior in this part unless a minimal placeholder internal type is required.
+- Keep business rules in the feature module, not in controllers or repositories.
+
+2. Persistence and schema for 3.1 only
+- Add forward Flyway migrations for:
+  - friendship_requests
+  - friendships
+- Do not add user_blocks or direct_dialogs in Milestone 3.1.
+- Implement JPA entities, repositories, and adapters in modules/adapters/persistence-jpa/.../contacts.
+- Enforce uniqueness for active friendship pairs.
+- Enforce sensible request constraints so duplicate pending requests in the same direction are not created.
+
+3. Locked domain rules for this part
+- Friend request creation must support either:
+  - userId
+  - username
+- If a pending reverse-direction request already exists, the new request must auto-convert into accepting that existing request.
+- Accepting a request creates the friendship relation.
+- Rejecting a request marks it rejected and does not create friendship.
+- The contacts list must provide enough data for:
+  - accepted friends
+  - inbound pending requests
+  - outbound pending requests
+- Do not implement remove friend, block, unblock, or direct-dialog creation in this part.
+
+4. HTTP API wiring for 3.1
+Implement only these endpoints now:
+- GET /api/contacts
+- POST /api/friend-requests
+- POST /api/friend-requests/{requestId}/accept
+- POST /api/friend-requests/{requestId}/reject
+
+Behavior expectations:
+- POST /api/friend-requests accepts either userId or username and optional messageText.
+- If both userId and username are missing, fail validation.
+- If both are present, either reject clearly or choose one consistent rule and document it. Prefer the simplest defensible behavior.
+- The auto-accept behavior for opposite-direction pending requests must be exercised through this same endpoint.
+- GET /api/contacts should already return a shape that can grow later for blocks without needing a breaking redesign. An empty blocked section is acceptable if that is the cleanest forward-compatible result.
+
+5. Dedicated contacts UI
+- Add a dedicated contacts-focused static page and JS modules.
+- Link it from the main /app shell.
+- The page must show:
+  - accepted friends
+  - inbound pending requests
+  - outbound pending requests
+  - request creation form
+- Do not add block management or direct-dialog placeholder UI yet.
+- Keep the UI minimal, usable, and consistent with the current classic-web direction.
+
+6. Docs for 3.1 slice
+Update only what is necessary so docs reflect the implemented 3.1 behavior without prematurely claiming full Milestone 3 completion:
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/milestones/03-contacts-direct-dialogs.md
+- ~/Projects/Chat/README.md if needed for truthful current status
+- add a dated Milestone 3.1 evidence note under ~/Projects/Chat/docs/evidence/
+- update ~/Projects/Chat/docs/evidence/README.md
+
+Do not claim Milestone 3 is complete. This is Milestone 3.1 only.
+
+Tests required:
+- service tests for:
+  - request creation by username
+  - request creation by userId
+  - duplicate same-direction pending request prevention
+  - opposite-direction pending request auto-accept
+  - explicit accept request
+  - explicit reject request
+  - contacts list state for accepted and pending relationships
+- persistence tests for:
+  - friendship pair uniqueness
+  - request persistence and transition behavior
+- HTTP integration tests for:
+  - create friend request by username
+  - create friend request by userId
+  - accept request
+  - reject request
+  - opposite-direction auto-accept via request creation
+  - GET /api/contacts shape and data
+- Keep ./gradlew test green.
+
+Manual/browser proof required:
+- create request by username
+- accept request
+- reject request
+- reverse-direction auto-accept behavior
+- contacts page rendering accepted and pending sections
+
+Important implementation notes:
+- Do not add remove-friend behavior yet.
+- Do not add block/unblock behavior yet.
+- Do not add direct-dialog creation yet.
+- Keep the response and domain shape clean enough that Milestone 3.2 and 3.3 can extend it without large rewrites.
+- Prefer one central reusable contacts-domain path over duplicating request logic in multiple layers.
+
+Definition of done for Milestone 3.1:
+- Milestone 3.1 scope is fully implemented
+- no Milestone 3.2 or 3.3 behavior is implemented
+- targeted contacts tests pass
+- ./gradlew test passes
+- docs and evidence are updated for Milestone 3.1 specifically
+- final response must summarize:
+  - what changed
+  - what was verified
+  - exact commands run
+  - actual results
+  - any remaining unverified risk
+  - what is intentionally deferred to Milestone 3.2 and 3.3
+
+Work end-to-end without stopping at analysis. Inspect the codebase first, then implement, test, review your own changes, double-check docs, and finish only after fresh verification.
+
+40. Implement Milestone 3.2 for the Chat project in ~/Projects/Chat.
+
+Follow the repo AGENTS instructions.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/docs/milestones/03-contacts-direct-dialogs.md
+- ~/Projects/Chat/docs/mvp-delivery-plan.md
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/bet-register.md
+- ~/Projects/Chat/docs/governance/checklist.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/README.md
+
+Build on the verified Milestone 1, Milestone 2, and Milestone 3.1 foundation. Implement Milestone 3.2 only. Do not start Milestone 3.3.
+
+Milestone 3.2 scope:
+- remove friend
+- block user
+- unblock user
+- centralized direct-message eligibility rules
+- dedicated contacts page updates for:
+  - accepted friends
+  - pending requests
+  - blocked-users subsection
+  - remove-friend controls
+  - block/unblock controls
+
+Out of scope for Milestone 3.2:
+- direct-dialog creation
+- direct-dialog placeholder page
+- contacts-side account deletion cleanup
+- full Milestone 3 closeout
+- any Milestone 4+ work
+
+Hard constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep business logic in modules/features/contacts.
+- Keep JPA/Flyway persistence in modules/adapters/persistence-jpa.
+- Keep UI Spring Boot-served and static-asset based under apps/api/src/main/resources/static with vanilla JS only.
+- No Node toolchain.
+- No server-side template engine unless absolutely required by an existing repo constraint.
+- Use KISS, DRY, YAGNI.
+- Prefer modern Java 25 syntax and language features where they improve clarity without overcomplication.
+- Reuse the current auth/session/CSRF foundation and current error-handling pattern.
+- Use Playwright MCP where it is a reasonable fit for browser proof.
+
+Locked Milestone 3 decisions already approved:
+1. Duplicate cross-direction friend requests auto-convert into accepting the existing incoming request.
+2. Contacts UI uses a dedicated contacts-focused static page linked from the main shell.
+3. Blocked users must appear in a separate blocked-users subsection.
+4. Unblocking does not restore friendship automatically.
+5. Blocking immediately removes friendship and prevents new friend requests.
+6. Direct-message eligibility depends on:
+   - active friendship
+   - no block in either direction
+
+Your job is to extend the existing Milestone 3.1 implementation, not redesign it.
+
+Deliver the following concrete code changes:
+
+1. Contacts feature extension
+- Extend modules/features/contacts api, application, and spi packages for:
+  - remove friend
+  - block user
+  - unblock user
+  - reusable direct-message eligibility evaluation
+- Keep one reusable domain path for friendship/block/eligibility rules.
+- Do not scatter eligibility checks across controllers and persistence code.
+
+2. Persistence and schema for 3.2 only
+- Add forward Flyway migration(s) for:
+  - user_blocks
+- Do not add direct_dialogs in Milestone 3.2.
+- Implement JPA entities, repositories, and adapter methods in modules/adapters/persistence-jpa/.../contacts.
+- Enforce blocker-blocked uniqueness.
+
+3. Locked domain rules for this part
+- Removing a friend:
+  - removes the friendship relation
+  - does not create a block
+  - preserves future compatibility with stable direct-dialog identity, but do not implement direct dialogs yet
+- Blocking a user:
+  - immediately removes friendship if it exists
+  - prevents new friend requests in either direction while the block is active
+  - makes the pair ineligible for new direct messages
+- Unblocking a user:
+  - removes the block only
+  - does not restore friendship
+  - does not make the pair eligible unless friendship exists again
+- DirectMessageEligibility must be encoded in a single reusable path that later Milestone 3.3, Milestone 4, and Milestone 7 can reuse.
+
+4. HTTP API wiring for 3.2
+Implement only these additional endpoints now:
+- DELETE /api/contacts/{userId}
+- PUT /api/blocks/{userId}
+- DELETE /api/blocks/{userId}
+
+Also extend GET /api/contacts as needed so the dedicated contacts page can render:
+- accepted friends
+- inbound pending requests
+- outbound pending requests
+- blocked users in a separate subsection
+
+Behavior expectations:
+- Blocking should work whether or not a friendship currently exists.
+- Blocking should fail clearly for self-block if that case arises. Prefer explicit rejection.
+- New friend requests must be denied while a block exists in either direction.
+- Do not implement POST /api/direct-dialogs/{userId}` yet.
+
+5. Dedicated contacts UI updates
+- Extend the existing dedicated contacts page and JS modules.
+- Add:
+  - remove-friend action
+  - block action
+  - unblock action
+  - separate blocked-users subsection
+- Keep the page minimal, usable, and consistent with the current classic-web direction.
+- Do not add direct-dialog placeholder UI yet.
+
+6. Docs for 3.2 slice
+Update only what is necessary so docs reflect the implemented 3.2 behavior without prematurely claiming full Milestone 3 completion:
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/milestones/03-contacts-direct-dialogs.md
+- ~/Projects/Chat/README.md if needed for truthful current status
+- add a dated Milestone 3.2 evidence note under ~/Projects/Chat/docs/evidence/
+- update ~/Projects/Chat/docs/evidence/README.md
+
+Do not claim full Milestone 3 completion. This is Milestone 3.2 only.
+
+Tests required:
+- service tests for:
+  - remove friend removes friendship
+  - block removes friendship if present
+  - block without existing friendship still creates a block
+  - unblock removes the block only
+  - unblock does not restore friendship
+  - friend request creation is denied while a block exists in either direction
+  - direct-message eligibility reflects friendship plus no-block rules
+- persistence tests for:
+  - block uniqueness
+  - block persistence
+  - friendship removal behavior where needed
+- HTTP integration tests for:
+  - remove friend
+  - block
+  - unblock
+  - request denial while blocked
+  - GET /api/contacts showing blocked users separately
+- Keep ./gradlew test green.
+
+Manual/browser proof required:
+- remove friend flow
+- block flow
+- unblock flow
+- blocked-users subsection rendering
+- friend request denial while blocked, if practical to show in UI
+
+Important implementation notes:
+- Do not add direct_dialogs yet.
+- Do not add contacts-side account deletion cleanup yet.
+- Do not expand into messaging behavior.
+- Keep DirectMessageEligibility reusable and centered in the contacts domain.
+- Prefer extending the existing Milestone 3.1 contacts response shape rather than redesigning it.
+
+Definition of done for Milestone 3.2:
+- Milestone 3.2 scope is fully implemented
+- no Milestone 3.3 behavior is implemented
+- targeted contacts tests pass
+- ./gradlew test passes
+- docs and evidence are updated for Milestone 3.2 specifically
+- final response must summarize:
+  - what changed
+  - what was verified
+  - exact commands run
+  - actual results
+  - any remaining unverified risk
+  - what is intentionally deferred to Milestone 3.3
+
+Work end-to-end without stopping at analysis. Inspect the codebase first, then implement, test, review your own changes, double-check docs, and finish only after fresh verification.
+
+41. Perform the code review of changes made. Fix all found issues.
+
+42. Implement Milestone 3.3 for the Chat project in ~/Projects/Chat.
+
+Follow the repo AGENTS instructions.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/docs/milestones/03-contacts-direct-dialogs.md
+- ~/Projects/Chat/docs/mvp-delivery-plan.md
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/bet-register.md
+- ~/Projects/Chat/docs/governance/checklist.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/README.md
+
+Build on the verified Milestone 1, Milestone 2, Milestone 3.1, and Milestone 3.2 foundation. Implement Milestone 3.3 only. Do not start Milestone 4.
+
+Milestone 3.3 scope:
+- direct-dialog ensure or fetch
+- stable direct-dialog identity per ordered user pair
+- dedicated direct-dialog placeholder view
+- contacts-side account deletion cleanup
+- Milestone 3 docs, evidence, and status closeout
+
+Out of scope for Milestone 3.3:
+- actual direct-message sending
+- direct-message history
+- unread markers
+- realtime contacts or dialog updates
+- WebSocket behavior
+- any Milestone 4+ work
+
+Hard constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep business logic in modules/features/contacts.
+- Keep JPA/Flyway persistence in modules/adapters/persistence-jpa.
+- Keep UI Spring Boot-served and static-asset based under apps/api/src/main/resources/static with vanilla JS only.
+- No Node toolchain.
+- No server-side template engine unless absolutely required by an existing repo constraint.
+- Use KISS, DRY, YAGNI.
+- Prefer modern Java 25 syntax and language features where they improve clarity without overcomplication.
+- Reuse the current auth/session/CSRF foundation and current error-handling pattern.
+- Use Playwright MCP where it is a reasonable fit for browser proof.
+
+Locked Milestone 3 decisions already approved and implemented in earlier slices:
+1. Duplicate cross-direction friend requests auto-convert into accepting the existing incoming request.
+2. Contacts UI uses a dedicated contacts-focused static page linked from the main shell.
+3. Blocked users appear in a separate blocked-users subsection.
+4. Unblocking does not restore friendship automatically.
+5. Blocking immediately removes friendship and prevents new friend requests.
+6. Direct-message eligibility depends on:
+   - active friendship
+   - no block in either direction
+
+Milestone 3.3-specific expectations:
+1. POST /api/direct-dialogs/{userId} must ensure or fetch one stable direct dialog for the ordered user pair.
+2. Direct-dialog creation/fetch must succeed only when the pair is currently eligible for direct messaging.
+3. Once a direct dialog exists, its identifier remains stable.
+4. Removing a friend or blocking later must preserve the dialog row/identity, even though future messaging remains ineligible.
+5. Account deletion cleanup must remove requests, friendships, and blocks involving the deleted user, but preserve direct_dialogs rows.
+
+Deliver the following concrete code changes:
+
+1. Contacts feature final extension
+- Extend modules/features/contacts api, application, and spi packages for:
+  - ensure or fetch direct dialog
+  - contacts-side account deletion cleanup behavior
+- Keep DirectMessageEligibility as the central reusable rule path.
+- Do not add message-send behavior.
+
+2. Persistence and schema for 3.3 only
+- Add forward Flyway migration(s) for:
+  - direct_dialogs
+- Implement JPA entities, repositories, and adapter methods in modules/adapters/persistence-jpa/.../contacts.
+- Enforce ordered-pair uniqueness for direct dialogs.
+- Preserve direct-dialog rows after friendship removal, block, unblock, and account deletion.
+
+3. Locked domain rules for this part
+- POST /api/direct-dialogs/{userId}:
+  - if a dialog already exists for the ordered pair, return it
+  - otherwise create it
+  - but only if the pair is currently eligible for direct messaging
+- If the pair is not eligible, fail clearly and consistently.
+- Friendship removal or block after dialog creation:
+  - must preserve dialog identity
+  - must not imply messaging is allowed
+- Account deletion cleanup:
+  - remove or invalidate pending requests created by or targeting the deleted user
+  - remove friendships involving the deleted user
+  - remove blocks involving the deleted user
+  - preserve direct_dialogs rows involving the deleted user for stable future history linkage
+
+4. HTTP API wiring for 3.3
+Implement only this additional endpoint now:
+- POST /api/direct-dialogs/{userId}
+
+Also extend any existing contacts/account-deletion wiring as needed so account deletion triggers the contacts cleanup behavior.
+
+Behavior expectations:
+- Direct-dialog ensure/fetch must use current eligibility rules, not bypass them.
+- Do not add message APIs.
+- Do not add history APIs.
+
+5. Dedicated direct-dialog placeholder UI
+- Add a dedicated direct-dialog placeholder view and link into it from the contacts page.
+- It may be a separate static page or a dedicated route in the current static shell pattern, whichever is simplest and most consistent with the repo.
+- The placeholder view must clearly show:
+  - dialog participant identity
+  - stable dialog identity or reference
+  - messaging intentionally deferred to Milestone 4
+- Do not implement message timeline behavior beyond a placeholder shell.
+
+6. Contacts-side account deletion integration
+- Replace any remaining no-op contacts-side cleanup with real cleanup through AccountDeletionImpactPort.
+- Make sure account deletion from Milestone 1 now fully cleans the contacts domain state that should be removed, while preserving direct-dialog identity rows.
+
+7. Docs for 3.3 and Milestone 3 closeout
+Update what is necessary so docs reflect full Milestone 3 completion:
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/milestones/03-contacts-direct-dialogs.md
+- ~/Projects/Chat/README.md
+- add a dated Milestone 3 evidence note under ~/Projects/Chat/docs/evidence/
+- update ~/Projects/Chat/docs/evidence/README.md
+
+After this slice, it is correct to say full Milestone 3 is completed and verified, but do not claim Milestone 4 behavior exists.
+
+Tests required:
+- service tests for:
+  - direct-dialog ensure-or-fetch for eligible pair
+  - stable dialog reuse for same pair
+  - denial when pair is ineligible
+  - dialog preserved after friendship removal
+  - dialog preserved after block
+  - contacts-side account deletion cleanup while preserving dialog row
+- persistence tests for:
+  - ordered-pair uniqueness in direct_dialogs
+  - stable reuse of same pair
+  - preserved direct-dialog row after relationship changes where applicable
+- HTTP integration tests for:
+  - POST /api/direct-dialogs/{userId} create or fetch
+  - ineligible pair denial
+  - account deletion triggering contacts cleanup and preserving direct_dialogs
+- Keep ./gradlew test green.
+
+Manual/browser proof required:
+- ensure direct dialog from an eligible friendship
+- open dedicated direct-dialog placeholder view
+- verify same pair returns same dialog identity
+- verify placeholder remains messaging-free
+- verify Milestone 3 contacts flow still works after 3.3 changes
+- capture screenshots for the evidence note
+
+Important implementation notes:
+- Do not add actual messaging.
+- Do not add message history.
+- Do not add unread state.
+- Do not add WebSocket behavior.
+- Keep the direct-dialog placeholder intentionally minimal and explicit about Milestone 4 dependency.
+- Keep direct-dialog identity stable and reusable for later messaging/history work.
+
+Definition of done for Milestone 3.3:
+- Milestone 3.3 scope is fully implemented
+- full Milestone 3 is now complete
+- targeted contacts tests pass
+- ./gradlew test passes
+- docs and evidence are updated for Milestone 3 completion
+- README truthfully reflects Milestone 3 completion
+- final response must summarize:
+  - what changed
+  - what was verified
+  - exact commands run
+  - actual results
+  - any remaining unverified risk
+  - what is intentionally deferred to Milestone 4
+
+Work end-to-end without stopping at analysis. Inspect the codebase first, then implement, test, perform the code review of your changes, fix found issues, double-check docs, and finish only after fresh verification.
+
+
+43. Milestone 3.3 is implemented. Check the Milestone 3 implementation.
+
+44. Break down the implementation of Milestone 4 plan into 2 - 3 parts, and provide me with a promt for the Milestone 4.1
+
+45. Implement Milestone 4.1 for the Chat project in ~/Projects/Chat.
+
+Follow the repo AGENTS instructions.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/docs/milestones/04-messaging-history-realtime.md
+- ~/Projects/Chat/docs/mvp-delivery-plan.md
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/bet-register.md
+- ~/Projects/Chat/docs/governance/checklist.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/README.md
+
+Build on the verified Milestone 1, Milestone 2, and Milestone 3 foundation. Implement Milestone 4.1 only. Do not start Milestone 4.2 or 4.3.
+
+Milestone 4.1 scope:
+- messaging feature module foundation
+- messages persistence
+- chat unread markers persistence
+- send message endpoint
+- read message history endpoint
+- advance read marker endpoint
+- support both room chats and direct dialogs
+- introduce the shared messaging types needed for later slices:
+  - ChatTargetRef
+  - MessageState
+  - UnreadMarker
+
+Out of scope for Milestone 4.1:
+- reply
+- edit
+- delete
+- WebSocket /ws
+- session-revocation handling for live sockets
+- replacing the placeholder room/direct-dialog UI with the real timeline
+- attachments
+- presence
+- any Milestone 5+ behavior
+
+Hard constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep business logic in modules/features/messaging.
+- Keep JPA/Flyway persistence in modules/adapters/persistence-jpa.
+- Keep UI Spring Boot-served and static-asset based under apps/api/src/main/resources/static with vanilla JS only.
+- No Node toolchain.
+- No server-side template engine unless absolutely required by an existing repo constraint.
+- Use KISS, DRY, YAGNI.
+- Prefer modern Java 25 syntax and language features where they improve clarity without overcomplication.
+- Reuse the current auth/session/CSRF foundation and current error-handling pattern.
+- Keep HTTP as the only write path for message mutations and history reads.
+- Do not introduce STOMP.
+- Do not add any WebSocket code in this slice.
+- Use Playwright MCP only if it is a clearly useful validation path for this backend-first slice.
+
+Your job is to create the backend and contract foundation for Milestone 4 without leaking Milestone 4.2 or 4.3 behavior.
+
+Deliver the following concrete code changes:
+
+1. Messaging feature module foundation
+- Implement modules/features/messaging api, application, and spi packages.
+- Add feature services for:
+  - send message
+  - read message history page
+  - advance read marker
+- Build the messaging core around ChatTargetRef.
+- Introduce the shared messaging types required for later slices:
+  - ChatTargetRef
+  - MessageState
+  - UnreadMarker
+- Keep domain rules in the feature module, not in controllers or repositories.
+
+2. Persistence and schema for 4.1 only
+- Add forward Flyway migrations for:
+  - messages
+  - chat_unread_markers
+- Implement JPA entities, repositories, and adapters in modules/adapters/persistence-jpa/.../messaging.
+- Enforce the rule that a message references exactly one target:
+  - either room_id
+  - or direct_dialog_id
+- Add the required indexes for room and direct-dialog history access from the governed persistence model.
+- Do not add attachments in this slice.
+
+3. Locked domain rules for this part
+- Room sends require:
+  - current room membership
+  - no active ban
+- Room history reads require:
+  - current room membership
+  - no active ban
+- Direct-dialog sends require:
+  - current direct-message eligibility from the contacts feature
+- Direct-dialog history reads require:
+  - the caller is one of the dialog participants
+  - existing history remains readable after later friendship removal or block
+- Message body must enforce the governed UTF-8 3 KB limit.
+- In this slice, all newly created messages should be active/non-deleted messages only.
+- Do not implement reply, edit, or delete yet.
+
+4. History and read-marker behavior for 4.1
+- Implement GET /api/chats/{chatType}/{chatId}/messages:
+  - initial load returns the newest page
+  - page order within the response is chronological
+  - before is the oldest message already visible, not an offset
+- Implement POST /api/chats/{chatType}/{chatId}/read-markers:
+  - read markers advance only forward
+  - older or equal markers must not move the state backward
+- Keep the unread state foundation clean for later badge rendering and WebSocket push, but do not implement live updates in this slice.
+
+5. HTTP API wiring for 4.1
+Implement only these endpoints now:
+- GET /api/chats/{chatType}/{chatId}/messages
+- POST /api/chats/{chatType}/{chatId}/messages
+- POST /api/chats/{chatType}/{chatId}/read-markers
+
+Behavior expectations:
+- Keep the request and response shapes aligned to docs/api-contracts.md.
+- Reuse current auth and validation conventions.
+- Fail clearly on unauthorized room/direct-dialog access.
+- Do not add PATCH /api/messages/{messageId} yet.
+- Do not add DELETE /api/messages/{messageId} yet.
+
+6. UI impact for 4.1
+- Do not replace the placeholder room or direct-dialog pages with the full timeline yet.
+- If a very small UI adjustment is needed to keep the app coherent, keep it minimal.
+- Do not implement composer, reply UI, edit UI, delete UI, or live updates in this slice.
+
+7. Docs for 4.1 slice
+Update only what is necessary so docs reflect the implemented 4.1 behavior without prematurely claiming full Milestone 4 completion:
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/milestones/04-messaging-history-realtime.md
+- ~/Projects/Chat/README.md if needed for truthful current status
+- add a dated Milestone 4.1 evidence note under ~/Projects/Chat/docs/evidence/
+- update ~/Projects/Chat/docs/evidence/README.md
+
+Do not claim full Milestone 4 completion. This is Milestone 4.1 only.
+
+Tests required:
+- service tests for:
+  - room send eligibility
+  - direct-dialog send eligibility
+  - room history read authorization
+  - direct-dialog history read authorization
+  - newest-page default history load
+  - before cursor loading older messages
+  - chronological order within a page
+  - read-marker advance only forward
+- persistence tests for:
+  - messages target exclusivity
+  - room history ordering/index-backed query behavior where practical
+  - direct-dialog history ordering/index-backed query behavior where practical
+  - unread marker persistence and update behavior
+- HTTP integration tests for:
+  - POST /api/chats/{chatType}/{chatId}/messages
+  - GET /api/chats/{chatType}/{chatId}/messages
+  - POST /api/chats/{chatType}/{chatId}/read-markers
+  - room authorization failures
+  - direct-dialog authorization behavior
+- Keep ./gradlew test green.
+
+Manual/API proof required:
+- room message send and history read through HTTP
+- direct-dialog message send and history read through HTTP
+- before cursor loading an older page
+- read-marker advance behavior
+- no browser timeline proof is required yet unless you introduce a minimal UI touch
+
+Important implementation notes:
+- Do not add reply behavior yet.
+- Do not add edit behavior yet.
+- Do not add delete behavior yet.
+- Do not add WebSocket code yet.
+- Do not replace the placeholder chat UI yet.
+- Keep the response/domain shape clean so Milestone 4.2 and 4.3 can extend it without a redesign.
+- Prefer one central messaging-domain path over duplicating room/direct-dialog authorization logic in multiple layers.
+
+Definition of done for Milestone 4.1:
+- Milestone 4.1 scope is fully implemented
+- no Milestone 4.2 or 4.3 behavior is implemented
+- targeted messaging tests pass
+- ./gradlew test passes
+- docs and evidence are updated for Milestone 4.1 specifically
+- final response must summarize:
+  - what changed
+  - what was verified
+  - exact commands run
+  - actual results
+  - any remaining unverified risk
+  - what is intentionally deferred to Milestone 4.2 and 4.3
+
+Work end-to-end without stopping at analysis. Inspect the codebase first, then implement, test, review your own changes, double-check docs, and finish only after fresh verification. 
+
+
+46. Please review my uncommitted changes
+
+47. Fix the found issues.
+
+48. Is the implementation of Milestone 4.1 fully completed? If yes - commit and push all changes to GitHub.
+
+49. Implement Milestone 4.2 for the Chat project in ~/Projects/Chat.
+
+Follow the repo AGENTS instructions.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/docs/milestones/04-messaging-history-realtime.md
+- ~/Projects/Chat/docs/mvp-delivery-plan.md
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/bet-register.md
+- ~/Projects/Chat/docs/governance/checklist.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/README.md
+
+Build on the verified Milestone 1, Milestone 2, Milestone 3, and Milestone 4.1 foundation. Implement Milestone 4.2 only. Do not start Milestone 4.3.
+
+Milestone 4.2 scope:
+- reply semantics
+- edit message
+- delete message
+- first real room and direct-dialog chat timeline UI
+- message composer UI
+- reply target UI
+- edited/deleted markers in the timeline
+- HTTP-backed unread badge rendering and clearing behavior
+
+Out of scope for Milestone 4.2:
+- WebSocket /ws
+- live fan-out of messages or unread changes
+- session-revocation handling for live sockets
+- presence and tab activity
+- attachments
+- any Milestone 5+ work
+
+Hard constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep business logic in modules/features/messaging.
+- Keep JPA/Flyway persistence in modules/adapters/persistence-jpa.
+- Keep UI Spring Boot-served and static-asset based under apps/api/src/main/resources/static with vanilla JS only.
+- No Node toolchain.
+- No server-side template engine unless absolutely required by an existing repo constraint.
+- Use KISS, DRY, YAGNI.
+- Prefer modern Java 25 syntax and language features where they improve clarity without overcomplication.
+- Reuse the current auth/session/CSRF foundation and current error-handling pattern.
+- Keep HTTP as the only write path for message mutations and history reads.
+- Do not introduce STOMP.
+- Do not add any WebSocket code in this slice.
+- Use Playwright MCP where it is a reasonable fit for browser proof, and it is expected to be useful for this UI-heavy slice.
+
+Your job is to extend the existing Milestone 4.1 messaging foundation, not redesign it.
+
+Deliver the following concrete code changes:
+
+1. Messaging feature extension
+- Extend modules/features/messaging api, application, and spi packages for:
+  - reply-capable message send
+  - edit message
+  - delete message
+- Keep ChatTargetRef, MessageState, and UnreadMarker as the shared messaging types.
+- Keep one reusable messaging-domain path for room and direct-dialog rules instead of scattering them across controllers or repositories.
+
+2. Locked domain rules for this part
+- Reply:
+  - sending a message may include an optional parent message reference
+  - reply targets must stay within the same chat target
+  - replying to a deleted message may be allowed only if that matches the current implementation style cleanly; if you choose one rule, document it and keep it consistent
+- Edit:
+  - author-only
+  - set edited state distinctly from created state
+  - preserve the original message row
+- Delete:
+  - in direct dialogs: author-only
+  - in room chats: author or room moderator
+  - model delete as MessageState.DELETED, not row removal
+- Tombstoned authors:
+  - history and timeline rendering must use the preserved users row cleanly
+  - deleted/tombstoned users must render as a tombstoned identity rather than as broken references
+- Unread:
+  - keep unread-marker semantics from 4.1
+  - add HTTP-backed unread badge rendering in room and direct-dialog navigation
+  - clearing unread should still happen through read-marker advancement, not client-only state
+
+3. HTTP API wiring for 4.2
+Use and extend the existing messaging surface:
+- extend POST /api/chats/{chatType}/{chatId}/messages to support optional reply target if not already present
+- implement PATCH /api/messages/{messageId}
+- implement DELETE /api/messages/{messageId}
+
+Behavior expectations:
+- keep request and response shapes aligned to docs/api-contracts.md
+- fail clearly on cross-chat reply attempts
+- fail clearly on unauthorized edit/delete attempts
+- do not add WebSocket endpoints or socket event delivery yet
+
+4. First real chat UI
+Replace the placeholder room and direct-dialog message panels with real HTTP-driven chat views:
+- message timeline
+- composer
+- reply target indicator and cancel control
+- edit control where authorized
+- delete control where authorized
+- distinct rendering for:
+  - normal messages
+  - edited messages
+  - deleted messages
+  - tombstoned authors
+- keep uploads disabled and visibly deferred to Milestone 5
+- direct-dialog placeholder identity can remain visible where useful, but the main surface must now behave like a real HTTP-driven chat screen
+
+5. Unread badge rendering for 4.2
+- Add unread badge rendering in room and direct-dialog navigation/sidebar state using HTTP-backed unread markers.
+- Keep it non-realtime in this slice.
+- It is acceptable for unread state to refresh on page load, chat open, send, edit/delete flow completion, or explicit refresh behavior.
+- Do not add live push.
+
+6. History behavior in the UI
+- Use the existing 4.1 history endpoint to render initial newest-page load.
+- Add older-history pagination/load-more behavior using the before cursor.
+- Keep within-page order chronological.
+- Do not add reconnect or live merge logic yet.
+
+7. Docs for 4.2 slice
+Update only what is necessary so docs reflect the implemented 4.2 behavior without prematurely claiming full Milestone 4 completion:
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/milestones/04-messaging-history-realtime.md
+- ~/Projects/Chat/README.md if needed for truthful current status
+- add a dated Milestone 4.2 evidence note under ~/Projects/Chat/docs/evidence/
+- update ~/Projects/Chat/docs/evidence/README.md
+
+Do not claim full Milestone 4 completion. This is Milestone 4.2 only.
+
+Tests required:
+- service tests for:
+  - reply within same chat succeeds
+  - cross-chat reply is denied
+  - author-only edit
+  - direct-dialog delete author-only
+  - room delete author-or-moderator
+  - delete becomes MessageState.DELETED
+  - edited marker/state is preserved distinctly
+  - tombstoned author rendering/view-model behavior
+- persistence tests for:
+  - reply parent linkage
+  - deleted-state persistence
+  - edited-state persistence
+  - history ordering remains correct with edited/deleted/reply messages
+- HTTP integration tests for:
+  - PATCH /api/messages/{messageId}
+  - DELETE /api/messages/{messageId}
+  - reply-capable POST /api/chats/{chatType}/{chatId}/messages
+  - room moderator delete authorization
+  - direct-dialog delete authorization
+  - unread badge-related read-marker flows where practical
+- Keep ./gradlew test green.
+
+Manual/browser proof required:
+- room chat timeline render
+- direct-dialog chat timeline render
+- send message
+- reply to message
+- edit message
+- delete message
+- tombstoned author render if practical to demonstrate
+- unread badge render and clear through opening/reading a chat
+- use Playwright MCP where it is a reasonable fit for these proofs
+
+Important implementation notes:
+- Do not add WebSocket code yet.
+- Do not add live message push yet.
+- Do not add session-revocation handling for sockets yet.
+- Do not add presence behavior.
+- Do not add attachments yet.
+- Keep the UI and state management simple and HTTP-driven.
+- Prefer extending the existing Milestone 4.1 API/domain shape rather than redesigning it.
+
+Definition of done for Milestone 4.2:
+- Milestone 4.2 scope is fully implemented
+- no Milestone 4.3 behavior is implemented
+- targeted messaging tests pass
+- ./gradlew test passes
+- docs and evidence are updated for Milestone 4.2 specifically
+- final response must summarize:
+  - what changed
+  - what was verified
+  - exact commands run
+  - actual results
+  - any remaining unverified risk
+  - what is intentionally deferred to Milestone 4.3
+
+Work end-to-end without stopping at analysis. Inspect the codebase first, then implement, test, review your own changes, double-check docs, and finish only after fresh verification.
+Perform the code review of changes made. Fix found issues.
+
+
+50. Milestone 4.2 is implemented.
+I want to complete the further work in a single separate chat.
+Create a plan breaking down all further work into parts like Milestone 4.3, Milestone 4.4, Milestone 5.1, etc...
+Create a single prompt for implementaion of the rest of functionality.
+The prompt should contain an instruction to do a code review and to fix found issues after each milestone.
+Each fully completed milestone should be commited and pushed to Github.
+In case if any open questions appear - choose an approach that is aligned with the best practices or is widely used in similar applications. 
+
+51. Implement the remaining Chat project functionality in ~/Projects/Chat, starting from the verified Milestone 4.2 state and completing the project through Milestone 8.2.
+
+Follow the repo AGENTS instructions exactly.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/docs/milestones/04-messaging-history-realtime.md
+- ~/Projects/Chat/docs/milestones/05-attachments-access-control.md
+- ~/Projects/Chat/docs/milestones/06-presence-multi-tab.md
+- ~/Projects/Chat/docs/milestones/07-xmpp-federation.md
+- ~/Projects/Chat/docs/milestones/08-admin-dashboards-load-validation.md
+- ~/Projects/Chat/docs/evidence/2026-04-21-b3-xmpp-path-spike.md
+- ~/Projects/Chat/docs/mvp-delivery-plan.md
+- ~/Projects/Chat/docs/api-contracts.md
+- ~/Projects/Chat/docs/persistence-model.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/bet-register.md
+- ~/Projects/Chat/docs/governance/checklist.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/README.md
+
+You are continuing from a repo state where Milestone 4.2 is already completed and verified.
+Your job is to finish the rest of the product in this single chat by working sequentially through the remaining parts below.
+
+Use the current working branch if it is already the intended implementation branch.
+If not, create a branch with a `codex/` prefix before starting.
+After each completed part below, commit and push to GitHub before moving to the next part.
+Use focused commit messages that do not mention Codex.
+
+Do not stop for routine design questions.
+If an open question appears and the docs do not fully specify the answer:
+- choose the approach that follows best practices or is widely used in similar chat applications
+- keep the choice aligned with the existing architecture and milestone docs
+- if the choice is materially important, record it in docs/bet-register.md, an ADR, or the milestone evidence note as appropriate
+
+Hard global constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep the modular monolith structure already chosen.
+- Keep UI Spring Boot-served and static-asset based with vanilla JS only.
+- No Node toolchain.
+- No separate frontend.
+- Keep HTTP for writes and queries.
+- Keep raw JSON WebSocket over /ws for push and tab activity only.
+- Do not introduce STOMP.
+- Keep Flyway migrations forward-only.
+- Keep the repo runnable by `docker compose up` from the root.
+- Use context7 and sonatype as primary sources when making library, framework, or dependency decisions, especially for XMPP-related implementation choices.
+- Use Playwright MCP where it is a reasonable fit for browser UI and end-to-end verification.
+- Use the local root-cause-debugging skill for bugs, test failures, build breaks, and unexpected behavior.
+- Use the local completion-verification skill before declaring each part complete.
+
+For every part below, follow this exact execution loop:
+1. Inspect the current code and the relevant docs for only the current part.
+2. Implement only the scope of the current part.
+3. Run targeted verification for the current part.
+4. Run `./gradlew test --no-daemon`.
+5. Perform a code review of your own changes from a reviewer mindset:
+   - check correctness
+   - check regressions
+   - check edge cases
+   - check contract alignment
+   - check testing gaps
+6. Fix any issues you find in that review.
+7. Re-run the relevant verification after the fixes.
+8. Update docs and add a dated evidence note for that part.
+9. Commit and push the completed part to GitHub.
+10. Then move to the next part.
+
+Do not skip the code-review-and-fix step.
+Do not skip the commit-and-push step after each completed part.
+
+The remaining implementation sequence is:
+
+Milestone 4.3
+- Implement the raw authenticated `/ws` backend.
+- Add the canonical server event envelope from docs/api-contracts.md.
+- Deliver server-side fan-out for:
+  - `message.created`
+  - `message.updated`
+  - `message.deleted`
+  - `unread.updated`
+- Authenticate the WebSocket handshake using the same session cookie as HTTP.
+- Keep this slice primarily backend-focused.
+- Add WebSocket integration tests.
+- Add evidence for the backend event flow.
+- Do not close full Milestone 4 yet.
+
+Milestone 4.4
+- Wire the room and direct-dialog UI to live `/ws` updates.
+- Add reconnect or subscription-resume behavior if needed and supported by the chosen design.
+- Implement live session-revocation handling so revoked sessions lose active socket validity.
+- Produce UI and timing evidence for live messaging and unread updates.
+- Close full Milestone 4.
+- Update README and status docs to truthfully reflect Milestone 4 completion before committing and pushing this part.
+
+Milestone 5.1
+- Implement the attachments backend:
+  - modules/features/attachments
+  - attachments and message_attachments migrations
+  - persistence adapter
+  - filesystem storage adapter under modules/adapters/storage-filesystem
+  - multipart upload endpoint
+  - metadata read endpoint
+  - download endpoint
+- Enforce:
+  - 20 MB file limit
+  - 3 MB image limit
+  - request-time authorization for metadata and downloads
+- Keep previews reserved but unused.
+- Keep attachments message-bound and chat-bound.
+- Add targeted backend tests and evidence.
+- Do not close full Milestone 5 yet.
+
+Milestone 5.2
+- Integrate attachments into the room and direct-dialog timeline UI.
+- Add upload button flow.
+- Add paste-image flow.
+- Show attachment metadata and download actions in the chat UI.
+- Enforce immediate attachment access loss after room removal or ban.
+- Ensure room deletion removes metadata and filesystem blobs.
+- Produce browser evidence and cleanup evidence.
+- Close full Milestone 5.
+- Update README and status docs before committing and pushing this part.
+
+Milestone 6.1
+- Implement presence backend foundation:
+  - session_tabs migration
+  - modules/features/presence
+  - persistence adapter
+  - derivation logic for ONLINE / AFK / OFFLINE
+- Use the governed tab and timeout rules from the milestone docs.
+- Keep this slice backend-focused and do not close Milestone 6 yet.
+- Add targeted service and persistence tests and evidence.
+- Commit and push when complete.
+
+Milestone 6.2
+- Add `tab.activity` and `tab.closed` handling on `/ws`.
+- Fan out `presence.updated`.
+- Add presence badges to contacts and shared-room member views.
+- Produce two-tab and two-browser evidence.
+- Resolve B2 with evidence: keep PostgreSQL plus in-process live state unless measurement proves otherwise.
+- Close full Milestone 6.
+- Update README and status docs before committing and pushing this part.
+
+Milestone 7.1
+- Follow the reconciled B3 XMPP direction exactly.
+- Keep one Spring Boot application per node.
+- Implement the XMPP adapter in `modules/adapters/xmpp`.
+- Deliver:
+  - XMPP login against the governed account model
+  - tombstoned-user denial
+  - basic XMPP presence
+  - local one-to-one direct-message interoperability mapped to direct dialogs
+- Keep business rules in the existing application services.
+- Add targeted tests and evidence.
+- Do not close full Milestone 7 yet.
+
+Milestone 7.2
+- Add persistence and topology for federation:
+  - xmpp_client_sessions
+  - federation_peers
+  - federation_traffic_samples
+- Add two-node federation assets under infra/docker.
+- Keep the root single-node compose flow intact.
+- Deliver A-to-B and B-to-A direct-message federation.
+- Persist peer status and traffic samples for later dashboards.
+- Add targeted federation tests and evidence.
+- Do not close full Milestone 7 yet.
+
+Milestone 7.3
+- Harden XMPP and federation behavior.
+- Add coverage for blocked or otherwise ineligible direct-message denial over XMPP.
+- Make sure local HTTP and XMPP eligibility rules remain aligned.
+- Complete Milestone 7 docs and evidence.
+- Close full Milestone 7.
+- Update README and status docs before committing and pushing this part.
+
+Milestone 8.1
+- Replace placeholder Jabber admin data with real queries.
+- Add real admin authorization for:
+  - GET /api/admin/jabber/connections
+  - GET /api/admin/jabber/federation/peers
+  - GET /api/admin/jabber/federation/traffic
+- Implement the classic-web admin UI screens for:
+  - current and recent XMPP client sessions
+  - federation peer status
+  - federation traffic statistics
+- Add tests for admin authorization and real dashboard data.
+- Add evidence.
+- Do not close full Milestone 8 yet.
+
+Milestone 8.2
+- Implement repeatable load tooling under `tools/load-tests/federation`.
+- Validate the mandatory advanced requirement:
+  - 50+ clients connected to server A
+  - 50+ clients connected to server B
+  - messaging from A to B and back
+- Record run topology, counts, timings, errors, and any remaining protocol limits.
+- Add the required evidence, screenshots, and logs under docs/evidence.
+- Close full Milestone 8 and the full remaining project scope.
+- Update README and status docs before committing and pushing this part.
+
+Documentation rules:
+- After each part, update only the docs needed to keep the repo truthful.
+- After each milestone-closing part:
+  - 4.4
+  - 5.2
+  - 6.2
+  - 7.3
+  - 8.2
+  update README Current Status and Immediate Next Step.
+- Add a dated evidence note for every part and list it in docs/evidence/README.md.
+
+Verification rules:
+- Every part must end with fresh targeted verification and a fresh `./gradlew test --no-daemon`.
+- Use Playwright MCP for browser/manual validation where useful.
+- Do not claim a part is complete without fresh evidence from commands or browser proofs.
+
+Final behavior for this chat:
+- Work sequentially through all remaining parts without stopping at analysis.
+- Do not stop to ask routine open questions.
+- Choose best-practice defaults when needed and document material assumptions.
+- After each part:
+  - verify
+  - review
+  - fix
+  - re-verify
+  - commit
+  - push
+- After the final part, summarize:
+  - all completed parts
+  - verification run for each
+  - commits and pushes performed
+  - final remaining risk, if any
+
+Do the work end-to-end.
+
+
+52. The plan implementation is reported as complete by Codex.
+
+53. Create a prompt for Codex to fix the found issues.
+
+54. Fix the review findings for the Chat project in ~/Projects/Chat.
+
+Follow the repo AGENTS instructions.
+Use the local root-cause-debugging skill for the XMPP runtime mismatch.
+Use the local completion-verification skill before declaring the fix complete.
+
+Read these files first and treat them as the source of truth for this task:
+- ~/Projects/Chat/README.md
+- ~/Projects/Chat/compose.yaml
+- ~/Projects/Chat/.env.example
+- ~/Projects/Chat/apps/api/src/main/resources/application.yml
+- ~/Projects/Chat/apps/api/src/main/resources/static/index.html
+- ~/Projects/Chat/docs/milestones/07-xmpp-federation.md
+- ~/Projects/Chat/docs/evidence/2026-04-22-milestone-7-1-evidence.md
+- ~/Projects/Chat/docs/evidence/README.md
+- ~/Projects/Chat/docs/architecture.md
+- ~/Projects/Chat/docs/governance/checklist.md
+
+Your task is to fix only the issues found in review. Do not expand product scope.
+
+Issues to fix:
+
+1. Root Compose runtime XMPP mismatch
+- Current problem:
+  - compose defaults the app to `SPRING_PROFILES_ACTIVE=docker-local`
+  - `docker-local` disables `chat.xmpp.enabled`
+  - README still tells reviewers to run `docker compose up --build` and use `localhost:5222` for local XMPP client connections
+  - Milestone 7.1 evidence also claims the root single-node flow exposes and configures the XMPP listener
+- Reproduced behavior:
+  - `docker compose up -d --build` succeeds
+  - app health on `8080` is UP
+  - opening an XMPP stream to `localhost:5222` gets `Connection reset by peer`
+- Your job:
+  - find the cleanest fix so the default root Compose path truthfully supports local XMPP on `5222`
+  - keep the repo runnable by `docker compose up` from the root
+  - keep the fix minimal and aligned with the existing architecture
+  - update docs/config/evidence as needed so the repo is truthful after the fix
+
+2. Stale landing page
+- Current problem:
+  - `/` still presents the app as a Milestone 1-only slice
+  - README says Milestones 1 through 8 are completed and verified
+- Your job:
+  - update the landing page so it reflects the current completed product state
+  - preserve the classic web style and keep the page simple
+  - do not redesign the UI unnecessarily
+
+Hard constraints:
+- Keep one Spring Boot app in apps/api.
+- Keep the modular monolith structure.
+- Do not start new feature work.
+- Do not add new architecture layers or abstractions.
+- Use KISS, DRY, YAGNI.
+- If any open question appears, choose the approach aligned with best practices and common chat-app behavior, then document the material assumption if needed.
+
+Expected work:
+1. Reproduce and confirm the XMPP root cause from the current tree.
+2. Apply the minimal fix for the root Compose XMPP path.
+3. Update the landing page copy/content to reflect the completed product.
+4. Update any affected docs:
+- README
+- evidence note(s) if needed
+- docs/evidence/README.md if you add a new note
+5. Run a reviewer-style code review of your own changes.
+6. Fix any issues found in that review.
+7. Re-run verification after fixes.
+
+Required verification:
+- `./gradlew :apps:api:test --tests '*XmppIntegrationTests' --no-daemon`
+- `./gradlew test --no-daemon`
+- `docker compose -f ~/Projects/Chat/compose.yaml config -q`
+- `docker compose -f ~/Projects/Chat/compose.yaml up -d --build`
+- `curl -i --max-time 20 http://localhost:8080/actuator/health`
+- `curl -i --max-time 20 http://localhost:8080/`
+- a real XMPP runtime check against `localhost:5222`
+  - at minimum prove the adapter is actually alive on the default root Compose path
+  - prefer a real stream-open check, and if practical a minimal authenticated-client proof
+- `docker compose -f ~/Projects/Chat/compose.yaml down -v`
+
+Definition of done:
+- default root `docker compose up --build` truthfully supports the claimed local XMPP runtime
+- landing page no longer describes the app as Milestone 1-only
+- docs are truthful
+- tests pass
+- runtime smoke checks pass
+- final response must include:
+  - root cause
+  - what changed
+  - what was verified
+  - exact commands run
+  - actual results
+  - any remaining unverified risk
+
+Work end-to-end without stopping at analysis. Inspect, reproduce, fix, review your own changes, verify again, and finish only when the two reported issues are actually closed.
+
+
+55. The found issues are reported as fixed by Codex. Review and test.
+
+56. 
+
