@@ -50,10 +50,20 @@ chat:
 spring:
   config:
     activate:
-      on-profile: local,docker-local,test
+      on-profile: local,test
 
 chat:
   auth:
     secure-cookie: false
   xmpp:
     enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker-local
+
+chat:
+  auth:
+    secure-cookie: false

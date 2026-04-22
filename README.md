@@ -61,7 +61,8 @@ See:
 3. Open `http://localhost:8080/` for the unauthenticated entry surface, `http://localhost:8080/actuator/health` for the health endpoint, and use `localhost:5222` for local XMPP client connections unless you override `XMPP_PORT`.
 
 ## Compose Defaults
-- The default root-level Compose flow exposes the web app on `APP_PORT`, the XMPP adapter on `XMPP_PORT`, and keeps PostgreSQL internal to the Compose network.
+- The default root-level Compose flow uses the `docker-local` profile, exposes the web app on `APP_PORT`, exposes the in-process XMPP adapter on `XMPP_PORT`, and keeps PostgreSQL internal to the Compose network.
+- `docker-local` keeps browser cookies usable over plain local HTTP while leaving `chat.xmpp.enabled` on, so the default `docker compose up` path supports both the web UI on `localhost:8080` and local XMPP client connections on `localhost:5222`.
 - This avoids host-port conflicts on `5432` and makes `docker compose up` from the repository root more reliable for reviewers.
 - If you need interactive database access, use `docker compose exec db psql -U ${POSTGRES_USER:-chat} -d ${POSTGRES_DB:-chat}` from the repository root.
 
