@@ -38,6 +38,11 @@ class JpaUserPersistenceAdapter implements UserPersistencePort {
     }
 
     @Override
+    public Optional<StoredUser> findByUsername(String username) {
+        return userJpaRepository.findByUsernameIgnoreCase(username).map(JpaUserPersistenceAdapter::toStoredUser);
+    }
+
+    @Override
     public Optional<StoredUser> findById(UUID userId) {
         return userJpaRepository.findById(userId).map(JpaUserPersistenceAdapter::toStoredUser);
     }

@@ -20,6 +20,6 @@ COPY --from=build /workspace/apps/api/build/libs/*.jar /app/app.jar
 
 RUN mkdir -p /app/storage
 
-EXPOSE 8080
+EXPOSE 8080 5222
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

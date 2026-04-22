@@ -81,7 +81,7 @@ It builds on ADR 0001 and should be read together with:
 6. Multi-tab presence transitions
    Milestone 6 is complete. Each tab reports activity with a stable client tab key over `/ws`, presence transitions fan out as `presence.updated`, and a user is `ONLINE` when at least one tab is active, `AFK` when connected tabs exist but all are inactive for more than one minute, and `OFFLINE` when no tab remains connected within the configured timeout window.
 7. XMPP client connectivity
-   A user can connect through a Jabber/XMPP client using the chosen interoperability level, authenticate against the governed account model, and exchange messages through the same chat domain.
+   Milestone 7.1 now supports the first governed Jabber slice inside the Spring Boot node: TCP stream open, SASL `PLAIN` login, resource bind, tombstoned-user denial, basic available or unavailable presence between connected friends, and local one-to-one direct-message interoperability mapped to the existing direct-dialog rules. Browser presence remains derived from browser tabs; XMPP client presence is currently adapter-local until the later federation slices land.
 8. Federated server traffic
    Two independently configured server instances exchange eligible messages in both directions while preserving delivery, authorization, and observability guarantees.
 9. Jabber administration and federation insight
@@ -101,7 +101,7 @@ The architected implementation order is fixed for the MVP:
 Each slice must leave behind updated docs, fresh validation evidence under `docs/evidence/`, and a bet or ADR review before the next slice starts. Detailed exit criteria live in `docs/mvp-delivery-plan.md` and `docs/governance/checklist.md`.
 
 ## Current Bets
-- B3 tracks which Java-compatible XMPP library and federation integration shape are the most pragmatic mandatory path.
+- B3 tracks whether the narrowed in-process XMPP path proven in Milestone 7.1 can extend cleanly to federation, persisted peer state, and load validation without introducing a companion XMPP server.
 
 ## Resolved Bet Notes
 - B2 is resolved by Milestone 6.2 evidence in favor of PostgreSQL plus in-process live state. Two-tab and two-browser probes stayed well under the two-second propagation target without introducing Redis.

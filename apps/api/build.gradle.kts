@@ -26,6 +26,9 @@ dependencies {
     runtimeOnly(libs.postgresql)
     testImplementation(project(":modules:core:testing"))
     testImplementation(libs.archunit)
+    testImplementation(libs.smack.java8)
+    testImplementation(libs.smack.tcp)
+    testImplementation(libs.smack.im)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
 }

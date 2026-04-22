@@ -24,8 +24,10 @@ import edu.artemiy.chat.identity.api.IdentityErrorType;
 import edu.artemiy.chat.identity.api.IdentityException;
 import edu.artemiy.chat.identity.api.IdentitySettings;
 import edu.artemiy.chat.identity.api.LoginCommand;
+import edu.artemiy.chat.identity.api.ResolvedUser;
 import edu.artemiy.chat.identity.api.RegisterUserCommand;
 import edu.artemiy.chat.identity.api.RequestPasswordResetCommand;
+import edu.artemiy.chat.identity.api.UsernamePasswordAuthenticationCommand;
 import edu.artemiy.chat.identity.domain.PasswordResetSecret;
 import edu.artemiy.chat.identity.spi.AccountDeletionImpact;
 import edu.artemiy.chat.identity.spi.AccountDeletionImpactPort;
@@ -227,6 +229,44 @@ class DefaultIdentityServiceTests {
             .hasMessageContaining("incorrect");
     }
 
+    @Test
+    void authenticatesByUsernameForXmppStyleLogin() {
+        StoredUser user = createUser("captain@example.com", "captain", "password123");
+
+        ResolvedUser resolvedUser = service.authenticateByUsernamePassword(
+            new UsernamePasswordAuthenticationCommand("Captain", "password123")
+        );
+
+        assertThat(resolvedUser.userId()).isEqualTo(user.id());
+        assertThat(resolvedUser.username()).isEqualTo("captain");
+    }
+
+    @Test
+    void usernameAuthenticationRejectsTombstonedUsers() {
+        StoredUser user = createUser("captain@example.com", "captain", "password123");
+        userPersistencePort.tombstone(new TombstoneUserRecord(
+            user.id(),
+            "deleted@example.com",
+            "deleted-user",
+            "Deleted user",
+            NOW
+        ));
+
+        assertThatThrownBy(() -> service.authenticateByUsernamePassword(
+            new UsernamePasswordAuthenticationCommand("captain", "password123")
+        ))
+            .isInstanceOf(IdentityException.class)
+            .hasMessageContaining("incorrect");
+    }
+
+    @Test
+    void findsActiveUserByUsernameIgnoringCase() {
+        StoredUser user = createUser("captain@example.com", "captain", "password123");
+
+        assertThat(service.findActiveUserByUsername("Captain"))
+            .contains(new ResolvedUser(user.id(), "captain", "captain"));
+    }
+
     private StoredUser createUser(String email, String username, String rawPassword) {
         return userPersistencePort.create(new NewUserRecord(
             UUID.randomUUID(),
@@ -268,6 +308,11 @@ class DefaultIdentityServiceTests {
         @Override
         public Optional<StoredUser> findByEmail(String email) {
             return users.values().stream().filter(user -> user.email().equalsIgnoreCase(email)).findFirst();
+        }
+
+        @Override
+        public Optional<StoredUser> findByUsername(String username) {
+            return users.values().stream().filter(user -> user.username().equalsIgnoreCase(username)).findFirst();
         }
 
         @Override

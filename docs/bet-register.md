@@ -19,7 +19,7 @@
 
 ## Open Questions
 - Does the Milestone 4.1 history paging default of 50 messages with a max of 100 remain appropriate once the real timeline UI and larger message histories are exercised?
-- Which narrow in-process XMPP protocol subset and supporting Java libraries are the most pragmatic mandatory path for this repository?
+- Milestone 7.1 narrowed the local XMPP slice to TCP stream open, SASL `PLAIN`, bind, basic presence, and local one-to-one direct messages, with Smack `4.4.8` `smack-java8` plus `smack-tcp` plus `smack-im` used for interoperability tests only. The remaining B3 question is whether that same in-process shape stays pragmatic once two-node federation and traffic persistence are added.
 - What two-server compose topology is the cleanest path to the required federation validation and 50-plus clients per side load test?
 
 ## Update Rule

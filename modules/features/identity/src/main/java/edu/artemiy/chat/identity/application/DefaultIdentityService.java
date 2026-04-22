@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.artemiy.chat.core.kernel.ClockPort;
+import edu.artemiy.chat.core.kernel.UsernameRules;
 import edu.artemiy.chat.identity.api.AuthenticatedSession;
 import edu.artemiy.chat.identity.api.ChangePasswordCommand;
 import edu.artemiy.chat.identity.api.ClientContext;
@@ -22,12 +23,15 @@ import edu.artemiy.chat.identity.api.IdentityService;
 import edu.artemiy.chat.identity.api.IdentitySettings;
 import edu.artemiy.chat.identity.api.LoginCommand;
 import edu.artemiy.chat.identity.api.LoginSession;
+import edu.artemiy.chat.identity.api.ResolvedUser;
 import edu.artemiy.chat.identity.api.RegisterUserCommand;
 import edu.artemiy.chat.identity.api.RegisteredUser;
 import edu.artemiy.chat.identity.api.RequestPasswordResetCommand;
 import edu.artemiy.chat.identity.api.SessionRevokedEvent;
 import edu.artemiy.chat.identity.api.SessionRevocationResult;
 import edu.artemiy.chat.identity.api.SessionSummary;
+import edu.artemiy.chat.identity.api.UserDirectoryQuery;
+import edu.artemiy.chat.identity.api.UsernamePasswordAuthenticationCommand;
 import edu.artemiy.chat.identity.domain.CredentialRules;
 import edu.artemiy.chat.identity.domain.PasswordResetSecret;
 import edu.artemiy.chat.identity.domain.TombstoneIdentity;
@@ -51,7 +55,7 @@ import edu.artemiy.chat.identity.spi.TombstoneUserRecord;
 import edu.artemiy.chat.identity.spi.UserPersistencePort;
 
 @Service
-public class DefaultIdentityService implements IdentityService {
+public class DefaultIdentityService implements IdentityService, UserDirectoryQuery {
 
     private static final int MAX_USER_AGENT_LENGTH = 512;
     private static final int MAX_IP_LENGTH = 64;
@@ -156,6 +160,31 @@ public class DefaultIdentityService implements IdentityService {
         ));
 
         return new LoginSession(session.id(), session.expiresAt(), user.username(), user.displayName());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ResolvedUser authenticateByUsernamePassword(UsernamePasswordAuthenticationCommand command) {
+        String username = normalizeUsernameForAuthentication(command.username());
+        StoredUser user = userPersistencePort.findByUsername(username)
+            .filter(candidate -> !candidate.deleted())
+            .orElseThrow(this::invalidCredentials);
+        if (user.passwordHash() == null || !passwordHasher.matches(command.password(), user.passwordHash())) {
+            throw invalidCredentials();
+        }
+        return toResolvedUser(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ResolvedUser> findActiveUserByUsername(String username) {
+        String normalizedUsername = normalizeUsernameForLookup(username);
+        if (normalizedUsername == null) {
+            return Optional.empty();
+        }
+        return userPersistencePort.findByUsername(normalizedUsername)
+            .filter(candidate -> !candidate.deleted())
+            .map(DefaultIdentityService::toResolvedUser);
     }
 
     @Override
@@ -389,6 +418,27 @@ public class DefaultIdentityService implements IdentityService {
 
     private static ClientContext defaultContext(ClientContext clientContext) {
         return clientContext == null ? new ClientContext("", "") : clientContext;
+    }
+
+    private static ResolvedUser toResolvedUser(StoredUser user) {
+        return new ResolvedUser(user.id(), user.username(), user.displayName());
+    }
+
+    private String normalizeUsernameForAuthentication(String username) {
+        String normalizedUsername = normalizeUsernameForLookup(username);
+        if (normalizedUsername == null) {
+            throw invalidCredentials();
+        }
+        return normalizedUsername;
+    }
+
+    private static String normalizeUsernameForLookup(String username) {
+        try {
+            return UsernameRules.normalize(username);
+        }
+        catch (UsernameRules.InvalidUsernameException ignored) {
+            return null;
+        }
     }
 
     private static String truncate(String value, int maxLength) {

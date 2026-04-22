@@ -11,6 +11,8 @@ public interface UserPersistencePort {
 
     Optional<StoredUser> findByEmail(String email);
 
+    Optional<StoredUser> findByUsername(String username);
+
     Optional<StoredUser> findById(UUID userId);
 
     StoredUser create(NewUserRecord newUser);

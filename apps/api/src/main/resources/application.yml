@@ -37,6 +37,10 @@ chat:
   federation:
     enabled: ${CHAT_FEDERATION_ENABLED:false}
     peer-domain: ${CHAT_FEDERATION_PEER_DOMAIN:}
+  xmpp:
+    enabled: ${CHAT_XMPP_ENABLED:true}
+    domain: ${CHAT_XMPP_DOMAIN:localhost}
+    port: ${CHAT_XMPP_PORT:5222}
 
 ---
 spring:
@@ -47,3 +51,5 @@ spring:
 chat:
   auth:
     secure-cookie: false
+  xmpp:
+    enabled: false

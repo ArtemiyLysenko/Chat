@@ -16,8 +16,8 @@ The target product is a classic web chat application with:
 - admin screens for Jabber connections and federation traffic
 
 ## Current Status
-Milestones 1 through 6 are completed and verified.
-The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side and contacts-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, friend removal, user block and unblock flows, centralized direct-message eligibility rules, stable direct-dialog ensure or fetch, HTTP room and direct-dialog history reads, forward-only unread markers, reply-capable sends, message edit and logical delete, live room and direct-dialog browser updates over the authenticated `/ws` channel, reconnect-driven HTTP refresh after socket recovery, live browser redirect when the current session is revoked, full Milestone 5 attachment delivery with message-bound room and direct-dialog uploads, paste-image handling, request-time access revocation, authorized downloads, room-delete blob cleanup, and full Milestone 6 presence delivery with per-tab `/ws` activity tracking, `presence.updated` fan-out, and live presence badges in contacts and shared-room member views.
+Milestones 1 through 6 are completed and verified, and Milestone 7.1 is now complete.
+The repository now ships a runnable Spring Boot plus PostgreSQL compose stack with browser registration, login, logout, password lifecycle flows, active-session management, room catalog and membership, private-room invite preview and join, moderation and ban management, room deletion, rooms-side and contacts-side account deletion cleanup, friendship request creation by username or user id, explicit accept and reject flows, reverse-direction auto-accept, friend removal, user block and unblock flows, centralized direct-message eligibility rules, stable direct-dialog ensure or fetch, HTTP room and direct-dialog history reads, forward-only unread markers, reply-capable sends, message edit and logical delete, live room and direct-dialog browser updates over the authenticated `/ws` channel, reconnect-driven HTTP refresh after socket recovery, live browser redirect when the current session is revoked, full Milestone 5 attachment delivery with message-bound room and direct-dialog uploads, paste-image handling, request-time access revocation, authorized downloads, room-delete blob cleanup, full Milestone 6 presence delivery with per-tab `/ws` activity tracking, `presence.updated` fan-out, and live presence badges in contacts and shared-room member views, plus the first governed XMPP slice with in-process Jabber login, tombstoned-user denial, basic XMPP presence between connected friends, and local one-to-one direct-message interoperability mapped to existing direct dialogs.
 
 ## Repository Layout
 - `apps/api` Spring Boot application and initial web delivery
@@ -58,12 +58,12 @@ See:
 ## Local Bootstrap
 1. Copy `.env.example` to `.env` if you want to override defaults.
 2. Run `docker compose up --build` from the repository root.
-3. Open `http://localhost:8080/` for the unauthenticated entry surface and `http://localhost:8080/actuator/health` for the health endpoint.
+3. Open `http://localhost:8080/` for the unauthenticated entry surface, `http://localhost:8080/actuator/health` for the health endpoint, and use `localhost:5222` for local XMPP client connections unless you override `XMPP_PORT`.
 
 ## Compose Defaults
-- The default root-level Compose flow exposes only the web app on `APP_PORT` and keeps PostgreSQL internal to the Compose network.
+- The default root-level Compose flow exposes the web app on `APP_PORT`, the XMPP adapter on `XMPP_PORT`, and keeps PostgreSQL internal to the Compose network.
 - This avoids host-port conflicts on `5432` and makes `docker compose up` from the repository root more reliable for reviewers.
 - If you need interactive database access, use `docker compose exec db psql -U ${POSTGRES_USER:-chat} -d ${POSTGRES_DB:-chat}` from the repository root.
 
 ## Immediate Next Step
-Implement Milestone 7.1 only: add the in-process XMPP adapter under `modules/adapters/xmpp`, governed XMPP login, tombstoned-user denial, basic XMPP presence, and local one-to-one direct-message interoperability without claiming later federation topology or Milestone 8 admin dashboards.
+Implement Milestone 7.2 only: add federation persistence, two-node topology assets, and A-to-B plus B-to-A direct-message federation without claiming the later hardening or Milestone 8 admin-dashboard work.
