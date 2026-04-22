@@ -1,3 +1,6 @@
+All the code was 100% written by Codex, not a single byte of the code was written manually.
+Please find the history of prompts in /Chat/docs/chat_instructions.txt
+
 # Chat
 
 AI-first hackathon project for the AI Herders Jam.
