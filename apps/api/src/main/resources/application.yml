@@ -34,6 +34,7 @@ chat:
     session-ttl: ${CHAT_AUTH_SESSION_TTL:P30D}
     password-reset-ttl: ${CHAT_AUTH_PASSWORD_RESET_TTL:PT15M}
     secure-cookie: ${CHAT_AUTH_SECURE_COOKIE:true}
+    admin-usernames: ${CHAT_AUTH_ADMIN_USERNAMES:}
   federation:
     enabled: ${CHAT_FEDERATION_ENABLED:false}
     peer-domain: ${CHAT_FEDERATION_PEER_DOMAIN:}

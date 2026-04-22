@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Optional;
+import java.util.UUID;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
@@ -23,6 +24,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import edu.artemiy.chat.app.bootstrap.ChatApplication;
+import edu.artemiy.chat.federation.api.FederationService;
 import edu.artemiy.chat.testing.PostgresIntegrationSupport;
 
 @SpringBootTest(
@@ -31,7 +33,8 @@ import edu.artemiy.chat.testing.PostgresIntegrationSupport;
     properties = {
         "chat.node-id=test-node",
         "chat.federation.enabled=true",
-        "chat.federation.peer-domain=federated.test"
+        "chat.federation.peer-domain=federated.test",
+        "chat.auth.admin-usernames=captain"
     }
 )
 @ActiveProfiles("test")
@@ -45,6 +48,9 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private FederationService federationService;
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
@@ -61,6 +67,9 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
         jdbcTemplate.execute(
             """
                 truncate table
+                    federation_traffic_samples,
+                    federation_peers,
+                    xmpp_client_sessions,
                     direct_dialogs,
                     user_blocks,
                     moderation_audit_events,
@@ -220,10 +229,60 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
     void deniesJabberAdminEndpointsToAuthenticatedNonAdminUsers() throws Exception {
         BrowserSession browser = new BrowserSession();
 
-        registerAndLogin(browser, "captain@example.com", "captain");
+        registerAndLogin(browser, "scout@example.com", "scout");
 
         HttpResponse<String> deniedConnections = browser.get("/api/admin/jabber/connections");
         assertThat(deniedConnections.statusCode()).isEqualTo(403);
+        assertThat(deniedConnections.body()).contains("identity.forbidden");
+
+        HttpResponse<String> deniedUiRoute = browser.get("/app/admin/jabber/connections");
+        assertThat(deniedUiRoute.statusCode()).isEqualTo(302);
+        assertThat(redirectPath(deniedUiRoute)).isEqualTo("/app");
+    }
+
+    @Test
+    void exposesRealJabberAdminDataToConfiguredAdmins() throws Exception {
+        BrowserSession browser = new BrowserSession();
+
+        registerAndLogin(browser, "captain@example.com", "captain");
+        UUID captainUserId = userIdByUsername("captain");
+        federationService.recordXmppClientConnected(
+            "xmpp-session-1",
+            captainUserId,
+            "captain@test.chat/bridge",
+            "bridge",
+            "127.0.0.1"
+        );
+        federationService.recordFederationOutboundMessage("peer-a.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
+        federationService.recordFederationInboundRejectedMessage("peer-a.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
+
+        HttpResponse<String> connections = browser.get("/api/admin/jabber/connections");
+        assertThat(connections.statusCode()).isEqualTo(200);
+        assertThat(connections.body()).contains("xmpp-session-1");
+        assertThat(connections.body()).contains("captain@test.chat/bridge");
+        assertThat(connections.body()).contains("CONNECTED");
+
+        HttpResponse<String> peers = browser.get("/api/admin/jabber/federation/peers");
+        assertThat(peers.statusCode()).isEqualTo(200);
+        assertThat(peers.body()).contains("peer-a.local");
+        assertThat(peers.body()).contains("UP");
+
+        HttpResponse<String> traffic = browser.get("/api/admin/jabber/federation/traffic");
+        assertThat(traffic.statusCode()).isEqualTo(200);
+        assertThat(traffic.body()).contains("peer-a.local");
+        assertThat(traffic.body()).contains("\"outboundMessages\":1");
+        assertThat(traffic.body()).contains("\"inboundStanzas\":1");
+        assertThat(traffic.body()).contains("\"errorCount\":1");
+
+        HttpResponse<String> connectionsPage = browser.get("/app/admin/jabber/connections");
+        assertThat(connectionsPage.statusCode()).isEqualTo(200);
+        assertThat(connectionsPage.body()).contains("Jabber connections");
+        assertThat(connectionsPage.body()).contains("Current sessions");
+
+        HttpResponse<String> federationPage = browser.get("/app/admin/jabber/federation");
+        assertThat(federationPage.statusCode()).isEqualTo(200);
+        assertThat(federationPage.body()).contains("Federation status");
+        assertThat(federationPage.body()).contains("Federation peers");
     }
 
     private void registerAndLogin(BrowserSession browser, String email, String username) throws Exception {
@@ -251,6 +310,14 @@ class ApplicationHttpWiringTests extends PostgresIntegrationSupport {
             .map(URI::create)
             .map(URI::getPath)
             .orElse("");
+    }
+
+    private UUID userIdByUsername(String username) {
+        return jdbcTemplate.queryForObject(
+            "select id from users where lower(username) = lower(?)",
+            UUID.class,
+            username
+        );
     }
 
     private final class BrowserSession {

@@ -285,15 +285,23 @@ select:focus {
 }
 
 .metric-list,
+.metric-grid,
 .notes,
 .session-list,
 .room-list,
-.member-list {
+.member-list,
+.admin-card-list {
   display: grid;
   gap: 14px;
 }
 
+.metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-top: 18px;
+}
+
 .metric-list div,
+.metric-card,
 .notes li,
 .session-item,
 .room-card,
@@ -352,6 +360,29 @@ ul.notes {
 .pill.neutral {
   background: rgba(127, 55, 32, 0.08);
   color: var(--accent);
+}
+
+.pill.status-connected,
+.pill.status-up {
+  background: rgba(37, 100, 67, 0.12);
+  color: var(--success);
+}
+
+.pill.status-authenticating,
+.pill.status-degraded {
+  background: rgba(180, 83, 9, 0.14);
+  color: #9a3412;
+}
+
+.pill.status-disconnected {
+  background: rgba(107, 88, 65, 0.12);
+  color: var(--muted);
+}
+
+.pill.status-error,
+.pill.status-down {
+  background: rgba(163, 44, 44, 0.12);
+  color: var(--danger);
 }
 
 .muted-block {

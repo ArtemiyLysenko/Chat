@@ -2,6 +2,8 @@ package edu.artemiy.chat.app.config;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -43,6 +45,7 @@ public class ChatProperties {
         private Duration sessionTtl = Duration.ofDays(30);
         private Duration passwordResetTtl = Duration.ofMinutes(15);
         private boolean secureCookie = true;
+        private List<String> adminUsernames = new ArrayList<>();
 
         public String getCookieName() {
             return cookieName;
@@ -74,6 +77,14 @@ public class ChatProperties {
 
         public void setSecureCookie(boolean secureCookie) {
             this.secureCookie = secureCookie;
+        }
+
+        public List<String> getAdminUsernames() {
+            return adminUsernames;
+        }
+
+        public void setAdminUsernames(List<String> adminUsernames) {
+            this.adminUsernames = adminUsernames == null ? new ArrayList<>() : new ArrayList<>(adminUsernames);
         }
     }
 

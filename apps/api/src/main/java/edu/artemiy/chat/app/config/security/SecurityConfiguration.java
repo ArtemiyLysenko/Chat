@@ -63,6 +63,12 @@ class SecurityConfiguration {
                 ).permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers(
+                    "/app/admin/jabber/connections",
+                    "/app/admin/jabber/federation",
+                    "/jabber-connections.html",
+                    "/jabber-federation.html"
+                ).hasRole("ADMIN")
+                .requestMatchers(
                     "/app",
                     "/app/contacts",
                     "/app/direct-dialogs/**",
@@ -80,12 +86,13 @@ class SecurityConfiguration {
                     "/api/auth/password/reset-requests",
                     "/api/auth/password/reset"
                 ).permitAll()
-                .requestMatchers("/api/admin/**").denyAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> commenceAuthentication(request.getRequestURI(), response))
+                .accessDeniedHandler((request, response, accessDeniedException) -> commenceForbidden(request.getRequestURI(), response))
             )
             .addFilterBefore(chatSessionAuthenticationFilter, AnonymousAuthenticationFilter.class);
 
@@ -100,9 +107,23 @@ class SecurityConfiguration {
         response.sendRedirect("/login");
     }
 
+    private static void commenceForbidden(String requestUri, HttpServletResponse response) throws IOException {
+        if (requestUri.startsWith("/api/")) {
+            writeForbidden(response);
+            return;
+        }
+        response.sendRedirect("/app");
+    }
+
     private static void writeUnauthorized(HttpServletResponse response) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write("{\"code\":\"identity.unauthenticated\",\"message\":\"Authentication is required.\"}");
+    }
+
+    private static void writeForbidden(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write("{\"code\":\"identity.forbidden\",\"message\":\"Admin access is required.\"}");
     }
 }

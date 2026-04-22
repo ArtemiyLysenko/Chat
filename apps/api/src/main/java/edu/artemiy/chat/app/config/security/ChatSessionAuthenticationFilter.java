@@ -1,7 +1,9 @@
 package edu.artemiy.chat.app.config.security;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -41,10 +43,15 @@ public class ChatSessionAuthenticationFilter extends OncePerRequestFilter {
             String sessionId = readSessionCookie(request);
             if (sessionId != null) {
                 identityService.authenticateSession(sessionId, clientContext(request)).ifPresent(authenticatedSession -> {
+                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    if (isAdmin(authenticatedSession.username())) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                    }
                     var authentication = UsernamePasswordAuthenticationToken.authenticated(
                         authenticatedSession,
                         sessionId,
-                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                        authorities
                     );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -53,6 +60,17 @@ public class ChatSessionAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isAdmin(String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+        String normalizedUsername = username.trim().toLowerCase(Locale.ROOT);
+        return chatProperties.getAuth().getAdminUsernames().stream()
+            .filter(candidate -> candidate != null && !candidate.isBlank())
+            .map(candidate -> candidate.trim().toLowerCase(Locale.ROOT))
+            .anyMatch(normalizedUsername::equals);
     }
 
     private String readSessionCookie(HttpServletRequest request) {

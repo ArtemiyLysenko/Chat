@@ -48,6 +48,16 @@ class UiRoutingController {
         return protectedPage(authentication, "forward:/sessions.html");
     }
 
+    @GetMapping("/app/admin/jabber/connections")
+    String jabberConnections(Authentication authentication) {
+        return protectedPage(authentication, "forward:/jabber-connections.html");
+    }
+
+    @GetMapping("/app/admin/jabber/federation")
+    String jabberFederation(Authentication authentication) {
+        return protectedPage(authentication, "forward:/jabber-federation.html");
+    }
+
     @GetMapping("/app/direct-dialogs/{userId}")
     String directDialog(Authentication authentication) {
         return protectedPage(authentication, "forward:/direct-dialog.html");

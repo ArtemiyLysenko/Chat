@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat | Federation</title>
+    <link rel="stylesheet" href="/assets/app.css" />
+    <script type="module" src="/js/jabber-federation-page.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="shell">
+        <header class="shell-header">
+          <div class="shell-brand">
+            <strong>Jabber admin</strong>
+            <span class="subtle">Peer health and traffic counters for the governed two-node federation path.</span>
+          </div>
+          <nav class="nav-links">
+            <a href="/app">Rooms</a>
+            <a href="/app/admin/jabber/connections">Connections</a>
+            <a href="/app/admin/jabber/federation">Federation</a>
+            <button class="secondary" type="button" data-logout-button>Sign out</button>
+          </nav>
+        </header>
+        <div class="shell-body">
+          <div class="stack">
+            <section class="panel">
+              <div class="split">
+                <div>
+                  <h2>Federation status</h2>
+                  <p>Shows persisted peer health plus the latest cumulative traffic samples returned by the real admin APIs.</p>
+                </div>
+                <button class="secondary" type="button" data-refresh-button>Refresh</button>
+              </div>
+              <div class="message" data-status-message></div>
+              <div class="metric-grid">
+                <article class="metric-card">
+                  <div class="metric" data-peer-count>0</div>
+                  <div class="subtle">Tracked peers</div>
+                </article>
+                <article class="metric-card">
+                  <div class="metric" data-up-count>0</div>
+                  <div class="subtle">Peers up</div>
+                </article>
+                <article class="metric-card">
+                  <div class="metric" data-down-count>0</div>
+                  <div class="subtle">Peers down</div>
+                </article>
+                <article class="metric-card">
+                  <div class="metric" data-sample-count>0</div>
+                  <div class="subtle">Traffic samples shown</div>
+                </article>
+              </div>
+            </section>
+
+            <div class="two-col">
+              <section class="panel">
+                <h3>Federation peers</h3>
+                <p>Health snapshots from `federation_peers`.</p>
+                <div class="admin-card-list" data-peer-list></div>
+              </section>
+
+              <section class="panel">
+                <h3>Traffic samples</h3>
+                <p>Most recent cumulative samples from `federation_traffic_samples`.</p>
+                <div class="admin-card-list" data-traffic-list></div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
