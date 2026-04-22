@@ -38,6 +38,14 @@ const detailLine = (label, value) => {
   return wrapper;
 };
 
+const presencePill = (presence) => {
+  const badge = document.createElement("span");
+  const normalizedPresence = (presence ?? "OFFLINE").toLowerCase();
+  badge.className = `pill presence presence-${normalizedPresence}`;
+  badge.textContent = normalizedPresence;
+  return badge;
+};
+
 const participantUserId = () => {
   const segments = window.location.pathname.split("/").filter(Boolean);
   return segments.at(-1) ?? "";
@@ -104,6 +112,7 @@ const renderFriendsList = () => {
 
     const status = document.createElement("div");
     status.className = "stack inline-stack";
+    status.append(presencePill(friend.presence));
     if (friend.unreadCount > 0) {
       const badge = document.createElement("span");
       badge.className = "pill badge";
@@ -192,6 +201,9 @@ const handleLiveDirectEvent = async (event) => {
       if (event?.chat?.type === "DIRECT") {
         await refreshDirectContactsLive();
       }
+      break;
+    case "presence.updated":
+      await refreshDirectContactsLive();
       break;
     default:
       break;

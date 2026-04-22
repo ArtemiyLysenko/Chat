@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import edu.artemiy.chat.app.bootstrap.ChatApplication;
+import edu.artemiy.chat.presence.api.PresenceService;
 import edu.artemiy.chat.testing.PostgresIntegrationSupport;
 
 @SpringBootTest(
@@ -57,6 +58,9 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private PresenceService presenceService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MockMvc mockMvc;
@@ -176,6 +180,32 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
         assertThat(scoutContacts.path("friends").size()).isEqualTo(1);
         assertThat(scoutContacts.path("friends").get(0).path("user").path("username").asText()).isEqualTo("captain");
         assertThat(scoutContacts.path("inboundPendingRequests").size()).isZero();
+    }
+
+    @Test
+    void contactsIncludeDerivedPresenceForFriends() throws Exception {
+        AuthenticatedClient captain = registerAndLogin("captain@example.com", "captain");
+        AuthenticatedClient scout = registerAndLogin("scout@example.com", "scout");
+
+        JsonNode created = postJson(
+            "/api/friend-requests",
+            """
+                {"username":"scout"}
+                """,
+            captain,
+            201
+        );
+        postWithoutBody("/api/friend-requests/%s/accept".formatted(created.path("requestId").asText()), scout, 204);
+
+        presenceService.registerTabConnection(scout.userId(), scout.sessionId(), "scout-tab");
+
+        JsonNode onlineContacts = getJson("/api/contacts", captain);
+        assertThat(onlineContacts.path("friends").get(0).path("presence").asText()).isEqualTo("ONLINE");
+
+        presenceService.closeTab(scout.userId(), scout.sessionId(), "scout-tab");
+
+        JsonNode offlineContacts = getJson("/api/contacts", captain);
+        assertThat(offlineContacts.path("friends").get(0).path("presence").asText()).isEqualTo("OFFLINE");
     }
 
     @Test
@@ -581,5 +611,9 @@ class ContactsHttpIntegrationTests extends PostgresIntegrationSupport {
     }
 
     private record AuthenticatedClient(UUID userId, Cookie sessionCookie, Cookie csrfCookie) {
+
+        UUID sessionId() {
+            return UUID.fromString(sessionCookie.getValue());
+        }
     }
 }

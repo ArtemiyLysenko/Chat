@@ -1,0 +1,42 @@
+{
+  "baseUrl": "http://localhost:18080",
+  "measuredAt": "2026-04-21T21:44:01.390Z",
+  "captainUserId": "960d1730-7f77-43fc-89ed-24d3cfa03082",
+  "scoutUserId": "527dd72f-59bc-4124-9ede-a011d181ec22",
+  "roomId": "10d1f613-9869-41b6-b60b-0788075e0e7c",
+  "thresholdMillis": 2000,
+  "twoTabs": {
+    "onlineEvent": {
+      "presence": "ONLINE",
+      "latencyMillis": 6
+    },
+    "afterFirstTabClose": {
+      "scoutContactsPresence": "ONLINE"
+    },
+    "offlineEvent": {
+      "presence": "OFFLINE",
+      "latencyMillis": 4
+    }
+  },
+  "twoBrowsers": {
+    "onlineEvent": {
+      "presence": "ONLINE",
+      "latencyMillis": 5
+    },
+    "afterFirstBrowserClose": {
+      "scoutContactsPresence": "ONLINE"
+    },
+    "afkEvent": {
+      "presence": "AFK",
+      "latencyMillis": 5
+    },
+    "backOnlineEvent": {
+      "presence": "ONLINE",
+      "latencyMillis": 3
+    },
+    "offlineEvent": {
+      "presence": "OFFLINE",
+      "latencyMillis": 3
+    }
+  }
+}

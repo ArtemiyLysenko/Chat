@@ -36,6 +36,8 @@ import edu.artemiy.chat.contacts.api.PendingFriendRequestSummary;
 import edu.artemiy.chat.messaging.api.ChatTargetRef;
 import edu.artemiy.chat.messaging.api.ChatTargetType;
 import edu.artemiy.chat.messaging.api.MessagingService;
+import edu.artemiy.chat.presence.api.PresenceService;
+import edu.artemiy.chat.presence.api.PresenceState;
 
 @RestController
 @Validated
@@ -43,10 +45,12 @@ class ContactsHttpController {
 
     private final ContactsService contactsService;
     private final MessagingService messagingService;
+    private final PresenceService presenceService;
 
-    ContactsHttpController(ContactsService contactsService, MessagingService messagingService) {
+    ContactsHttpController(ContactsService contactsService, MessagingService messagingService, PresenceService presenceService) {
         this.contactsService = contactsService;
         this.messagingService = messagingService;
+        this.presenceService = presenceService;
     }
 
     @GetMapping("/api/contacts")
@@ -61,6 +65,11 @@ class ContactsHttpController {
                 .map(dialogId -> new ChatTargetRef(ChatTargetType.DIRECT, dialogId))
                 .toList()
         );
+        Map<UUID, PresenceState> presenceByUserId = presenceService.derivePresence(
+            contactsView.friends().stream()
+                .map(friend -> friend.user().id())
+                .toList()
+        );
         return new ContactsViewResponse(
             actorUserId,
             contactsView.friends().stream()
@@ -69,7 +78,8 @@ class ContactsHttpController {
                     friend.user(),
                     friend.directDialogId(),
                     friend.friendsSince(),
-                    friend.directDialogId() == null ? 0 : unreadCounts.getOrDefault(friend.directDialogId(), 0)
+                    friend.directDialogId() == null ? 0 : unreadCounts.getOrDefault(friend.directDialogId(), 0),
+                    presenceByUserId.getOrDefault(friend.user().id(), PresenceState.OFFLINE)
                 ))
                 .toList(),
             contactsView.inboundPendingRequests(),
@@ -166,7 +176,8 @@ class ContactsHttpController {
         ContactUserSummary user,
         UUID directDialogId,
         Instant friendsSince,
-        int unreadCount
+        int unreadCount,
+        PresenceState presence
     ) {
     }
 }

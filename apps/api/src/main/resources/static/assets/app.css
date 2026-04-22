@@ -435,6 +435,21 @@ ul.notes {
   color: var(--accent);
 }
 
+.pill.presence-online {
+  background: rgba(37, 100, 67, 0.12);
+  color: var(--success);
+}
+
+.pill.presence-afk {
+  background: rgba(180, 83, 9, 0.14);
+  color: #9a3412;
+}
+
+.pill.presence-offline {
+  background: rgba(107, 88, 65, 0.12);
+  color: var(--muted);
+}
+
 .room-card--active {
   border-color: rgba(127, 55, 32, 0.32);
   box-shadow: inset 0 0 0 1px rgba(127, 55, 32, 0.12);

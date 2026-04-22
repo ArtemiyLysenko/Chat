@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import edu.artemiy.chat.app.bootstrap.ChatApplication;
+import edu.artemiy.chat.presence.api.PresenceService;
 import edu.artemiy.chat.testing.PostgresIntegrationSupport;
 
 @SpringBootTest(
@@ -57,6 +58,9 @@ class RoomsHttpIntegrationTests extends PostgresIntegrationSupport {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private PresenceService presenceService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private MockMvc mockMvc;
@@ -120,6 +124,25 @@ class RoomsHttpIntegrationTests extends PostgresIntegrationSupport {
 
         assertThat(joined).contains("Lobby");
         assertThat(joined).contains("\"viewerRole\":\"MEMBER\"");
+    }
+
+    @Test
+    void roomDetailsIncludeDerivedPresenceForMembers() throws Exception {
+        AuthenticatedClient owner = registerAndLogin("owner@example.com", "owner");
+        AuthenticatedClient member = registerAndLogin("member@example.com", "member");
+
+        UUID roomId = createRoom(owner, "Bridge", "PUBLIC");
+        postJson("/api/rooms/%s/join".formatted(roomId), null, member, 204);
+
+        presenceService.registerTabConnection(member.userId(), member.sessionId(), "member-tab");
+
+        JsonNode details = objectMapper.readTree(getJson("/api/rooms/" + roomId, owner).getResponse().getContentAsString());
+        assertThat(details.path("members").findValuesAsText("presence")).contains("ONLINE");
+
+        presenceService.closeTab(member.userId(), member.sessionId(), "member-tab");
+
+        JsonNode closedDetails = objectMapper.readTree(getJson("/api/rooms/" + roomId, owner).getResponse().getContentAsString());
+        assertThat(closedDetails.path("members").findValuesAsText("presence")).contains("OFFLINE");
     }
 
     @Test
@@ -391,5 +414,9 @@ class RoomsHttpIntegrationTests extends PostgresIntegrationSupport {
     }
 
     private record AuthenticatedClient(UUID userId, Cookie sessionCookie, Cookie csrfCookie) {
+
+        UUID sessionId() {
+            return UUID.fromString(sessionCookie.getValue());
+        }
     }
 }

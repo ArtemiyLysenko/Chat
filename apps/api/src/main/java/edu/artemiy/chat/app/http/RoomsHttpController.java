@@ -36,6 +36,8 @@ import edu.artemiy.chat.rooms.api.RoomSummary;
 import edu.artemiy.chat.rooms.api.RoomUserSummary;
 import edu.artemiy.chat.rooms.api.RoomVisibility;
 import edu.artemiy.chat.rooms.api.RoomsService;
+import edu.artemiy.chat.presence.api.PresenceService;
+import edu.artemiy.chat.presence.api.PresenceState;
 
 @RestController
 @Validated
@@ -43,10 +45,12 @@ class RoomsHttpController {
 
     private final RoomsService roomsService;
     private final MessagingService messagingService;
+    private final PresenceService presenceService;
 
-    RoomsHttpController(RoomsService roomsService, MessagingService messagingService) {
+    RoomsHttpController(RoomsService roomsService, MessagingService messagingService, PresenceService presenceService) {
         this.roomsService = roomsService;
         this.messagingService = messagingService;
+        this.presenceService = presenceService;
     }
 
     @GetMapping("/api/rooms")
@@ -84,6 +88,11 @@ class RoomsHttpController {
     RoomDetailsResponse loadRoomDetails(@PathVariable UUID roomId, Authentication authentication) {
         UUID actorUserId = AuthenticatedHttpUserSupport.userId(authentication);
         RoomDetails details = roomsService.loadRoomDetails(actorUserId, roomId);
+        Map<UUID, PresenceState> presenceByUserId = presenceService.derivePresence(
+            details.members().stream()
+                .map(member -> member.user().id())
+                .toList()
+        );
         return new RoomDetailsResponse(
             details.id(),
             details.name(),
@@ -102,7 +111,17 @@ class RoomsHttpController {
             details.canInspectBans(),
             details.canManageBans(),
             details.canDelete(),
-            details.members()
+            details.members().stream()
+                .map(member -> new RoomMemberResponse(
+                    member.user(),
+                    member.role(),
+                    member.joinedAt(),
+                    member.canGrantAdmin(),
+                    member.canRevokeAdmin(),
+                    member.canRemove(),
+                    presenceByUserId.getOrDefault(member.user().id(), PresenceState.OFFLINE)
+                ))
+                .toList()
         );
     }
 
@@ -227,7 +246,18 @@ class RoomsHttpController {
         boolean canInspectBans,
         boolean canManageBans,
         boolean canDelete,
-        List<RoomMember> members
+        List<RoomMemberResponse> members
+    ) {
+    }
+
+    private record RoomMemberResponse(
+        RoomUserSummary user,
+        MembershipRole role,
+        java.time.Instant joinedAt,
+        boolean canGrantAdmin,
+        boolean canRevokeAdmin,
+        boolean canRemove,
+        PresenceState presence
     ) {
     }
 }

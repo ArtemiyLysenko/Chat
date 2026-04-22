@@ -56,6 +56,11 @@ const rolePill = (text, extraClass = "") => {
   return element;
 };
 
+const presencePill = (presence) => {
+  const normalizedPresence = (presence ?? "OFFLINE").toLowerCase();
+  return rolePill(normalizedPresence, `presence presence-${normalizedPresence}`);
+};
+
 const userLabel = (user) => (user.deleted ? user.displayName : `${user.displayName} (@${user.username})`);
 
 const performContactsAction = async (request, successMessage) => {
@@ -147,7 +152,10 @@ const renderFriends = () => {
         userLabel(friend.user),
         details,
         [openDialogButton, removeFriendButton, blockButton],
-        friend.unreadCount > 0 ? [rolePill(`${friend.unreadCount} unread`, "badge")] : []
+        [
+          presencePill(friend.presence),
+          ...(friend.unreadCount > 0 ? [rolePill(`${friend.unreadCount} unread`, "badge")] : []),
+        ]
       )
     );
   }
@@ -274,6 +282,10 @@ const refreshContactsLive = createCoalescedTask(async () => {
 
 createLiveUpdatesClient({
   onEvent: async (event) => {
+    if (event?.type === "presence.updated") {
+      await refreshContactsLive();
+      return;
+    }
     if (event?.type === "unread.updated" && event?.chat?.type === "DIRECT") {
       await refreshContactsLive();
     }

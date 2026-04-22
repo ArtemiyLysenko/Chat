@@ -22,6 +22,8 @@ import edu.artemiy.chat.messaging.api.MessageEventType;
 import edu.artemiy.chat.messaging.api.MessagingException;
 import edu.artemiy.chat.messaging.api.MessagingService;
 import edu.artemiy.chat.messaging.api.UnreadMarkerUpdatedEvent;
+import edu.artemiy.chat.presence.api.PresenceAudienceQuery;
+import edu.artemiy.chat.presence.api.PresenceState;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
@@ -32,17 +34,20 @@ class ChatWebSocketEventRelay {
     private final ChatWebSocketConnectionRegistry connectionRegistry;
     private final ChatAudienceQuery chatAudienceQuery;
     private final MessagingService messagingService;
+    private final PresenceAudienceQuery presenceAudienceQuery;
     private final ObjectMapper objectMapper;
 
     ChatWebSocketEventRelay(
         ChatWebSocketConnectionRegistry connectionRegistry,
         ChatAudienceQuery chatAudienceQuery,
         MessagingService messagingService,
+        PresenceAudienceQuery presenceAudienceQuery,
         ObjectMapper objectMapper
     ) {
         this.connectionRegistry = connectionRegistry;
         this.chatAudienceQuery = chatAudienceQuery;
         this.messagingService = messagingService;
+        this.presenceAudienceQuery = presenceAudienceQuery;
         this.objectMapper = objectMapper;
     }
 
@@ -81,6 +86,19 @@ class ChatWebSocketEventRelay {
             );
             sendAndClose(connectionRegistry.authSessionConnections(sessionId), envelope, SESSION_REVOKED);
         }
+    }
+
+    void relayPresenceUpdated(UUID userId, PresenceState presenceState, Instant occurredAt) {
+        sendToUsers(
+            presenceAudienceQuery.listAudienceUserIds(userId),
+            new ChatWebSocketEventEnvelope(
+                UUID.randomUUID(),
+                "presence.updated",
+                occurredAt,
+                null,
+                new PresenceUpdatedPayload(userId, presenceState)
+            )
+        );
     }
 
     private void relayUnreadUpdate(UUID userId, ChatTargetRef chat, UUID lastReadMessageId, Instant occurredAt) {
@@ -168,5 +186,8 @@ class ChatWebSocketEventRelay {
     }
 
     private record SessionRevokedPayload(UUID sessionId) {
+    }
+
+    private record PresenceUpdatedPayload(UUID userId, PresenceState presence) {
     }
 }

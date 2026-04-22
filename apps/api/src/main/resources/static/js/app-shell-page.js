@@ -108,6 +108,11 @@ const rolePill = (text, extraClass = "") => {
   return element;
 };
 
+const presencePill = (presence) => {
+  const normalizedPresence = (presence ?? "OFFLINE").toLowerCase();
+  return rolePill(normalizedPresence, `presence presence-${normalizedPresence}`);
+};
+
 const actionButton = (label, kind = "primary") => {
   const button = document.createElement("button");
   button.type = "button";
@@ -209,6 +214,13 @@ const renderMembers = (details) => {
     name.textContent = `${member.user.displayName} (@${member.user.username})`;
     info.append(name, summaryLine(`${member.role} · joined ${formatDate(member.joinedAt)}`));
 
+    const top = document.createElement("div");
+    top.className = "split";
+    const badges = document.createElement("div");
+    badges.className = "stack inline-stack";
+    badges.append(presencePill(member.presence));
+    top.append(info, badges);
+
     const actions = document.createElement("div");
     actions.className = "actions";
 
@@ -264,7 +276,7 @@ const renderMembers = (details) => {
       actions.append(removeButton);
     }
 
-    item.append(info);
+    item.append(top);
     if (actions.childElementCount > 0) {
       item.append(actions);
     }
@@ -572,6 +584,10 @@ const refreshSelectedRoomLive = createCoalescedTask(async () => {
   await loadSelectedRoom();
 });
 
+const refreshSelectedRoomPresenceLive = createCoalescedTask(async () => {
+  await loadSelectedRoom();
+});
+
 const refreshOpenRoomChatLive = createCoalescedTask(async () => {
   await roomChatSurface.refresh();
 });
@@ -581,6 +597,11 @@ const shouldRefreshOpenRoomChat = (event) =>
   && state.selectedRoom?.accessLevel === "FULL"
   && state.selectedRoom?.viewerRole != null
   && state.selectedRoom?.id === event.chat.id;
+
+const selectedRoomHasUser = (userId) =>
+  state.selectedRoom?.accessLevel === "FULL"
+  && Array.isArray(state.selectedRoom?.members)
+  && state.selectedRoom.members.some((member) => member.user.id === userId);
 
 const handleLiveRoomEvent = async (event) => {
   switch (event?.type) {
@@ -594,6 +615,11 @@ const handleLiveRoomEvent = async (event) => {
     case "unread.updated":
       if (event?.chat?.type === "ROOM") {
         await refreshRoomListsLive();
+      }
+      break;
+    case "presence.updated":
+      if (selectedRoomHasUser(event?.payload?.userId)) {
+        await refreshSelectedRoomPresenceLive();
       }
       break;
     default:

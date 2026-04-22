@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
+import java.time.Instant;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -189,6 +190,90 @@ class ChatWebSocketIntegrationTests extends PostgresIntegrationSupport {
         }
     }
 
+    @Test
+    void fansOutPresenceUpdatesToFriendsAndSharedRoomMembers() throws Exception {
+        BrowserSession captain = new BrowserSession();
+        BrowserSession scout = new BrowserSession();
+        BrowserSession analyst = new BrowserSession();
+        registerAndLogin(captain, "captain@example.com", "captain");
+        registerAndLogin(scout, "scout@example.com", "scout");
+        registerAndLogin(analyst, "analyst@example.com", "analyst");
+        String captainUserId = captain.getJson("/api/contacts", 200).path("viewerUserId").asText();
+
+        JsonNode createdRequest = captain.postJson(
+            "/api/friend-requests",
+            """
+                {"username":"scout"}
+                """,
+            201
+        );
+        scout.postWithoutBody("/api/friend-requests/%s/accept".formatted(createdRequest.path("requestId").asText()), 204);
+
+        UUID roomId = createRoom(captain, "Presence Bridge");
+        analyst.postWithoutBody("/api/rooms/%s/join".formatted(roomId), 204);
+
+        ConnectedSocket captainSocket = connectWebSocket(captain);
+        ConnectedSocket scoutSocket = connectWebSocket(scout);
+        ConnectedSocket analystSocket = connectWebSocket(analyst);
+        try {
+            sendSocketMessage(
+                captainSocket.webSocket(),
+                """
+                    {"type":"tab.activity","tabKey":"captain-tab","lastActivityAt":"%s"}
+                    """.formatted(Instant.now())
+            );
+
+            JsonNode scoutOnline = scoutSocket.listener().awaitMessage();
+            JsonNode analystOnline = analystSocket.listener().awaitMessage();
+            assertThat(scoutOnline.path("type").asText()).isEqualTo("presence.updated");
+            assertThat(scoutOnline.path("payload").path("userId").asText()).isEqualTo(captainUserId);
+            assertThat(scoutOnline.path("payload").path("presence").asText()).isEqualTo("ONLINE");
+            assertThat(analystOnline.path("type").asText()).isEqualTo("presence.updated");
+            assertThat(analystOnline.path("payload").path("userId").asText()).isEqualTo(captainUserId);
+            assertThat(analystOnline.path("payload").path("presence").asText()).isEqualTo("ONLINE");
+
+            jdbcTemplate.update(
+                """
+                    update session_tabs
+                    set last_activity_at = now() - interval '61 seconds'
+                    where session_id = ?::uuid
+                      and tab_key = ?
+                    """,
+                captain.cookieValue("CHAT_SESSION"),
+                "captain-tab"
+            );
+
+            sendSocketMessage(
+                captainSocket.webSocket(),
+                """
+                    {"type":"tab.activity","tabKey":"captain-tab","lastActivityAt":"%s"}
+                    """.formatted(Instant.now().minusSeconds(61))
+            );
+
+            JsonNode scoutAfk = scoutSocket.listener().awaitMessage();
+            JsonNode analystAfk = analystSocket.listener().awaitMessage();
+            assertThat(scoutAfk.path("payload").path("presence").asText()).isEqualTo("AFK");
+            assertThat(analystAfk.path("payload").path("presence").asText()).isEqualTo("AFK");
+
+            sendSocketMessage(
+                captainSocket.webSocket(),
+                """
+                    {"type":"tab.closed","tabKey":"captain-tab"}
+                    """
+            );
+
+            JsonNode scoutOffline = scoutSocket.listener().awaitMessage();
+            JsonNode analystOffline = analystSocket.listener().awaitMessage();
+            assertThat(scoutOffline.path("payload").path("presence").asText()).isEqualTo("OFFLINE");
+            assertThat(analystOffline.path("payload").path("presence").asText()).isEqualTo("OFFLINE");
+        }
+        finally {
+            captainSocket.webSocket().sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
+            scoutSocket.webSocket().sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
+            analystSocket.webSocket().sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
+        }
+    }
+
     private void registerAndLogin(BrowserSession browser, String email, String username) throws Exception {
         registerAndLogin(browser, email, username, false);
     }
@@ -241,6 +326,10 @@ class ChatWebSocketIntegrationTests extends PostgresIntegrationSupport {
         return URI.create("ws://localhost:" + port + "/ws");
     }
 
+    private static void sendSocketMessage(WebSocket webSocket, String payload) {
+        webSocket.sendText(payload, true).join();
+    }
+
     private final class BrowserSession {
 
         private final CookieManager cookieManager = new CookieManager();
@@ -255,6 +344,12 @@ class ChatWebSocketIntegrationTests extends PostgresIntegrationSupport {
                 .GET()
                 .build();
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        }
+
+        JsonNode getJson(String path, int expectedStatus) throws Exception {
+            HttpResponse<String> response = get(path);
+            assertThat(response.statusCode()).isEqualTo(expectedStatus);
+            return response.body().isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(response.body());
         }
 
         JsonNode postJson(String path, String body, int expectedStatus) throws Exception {

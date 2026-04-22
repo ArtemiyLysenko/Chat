@@ -1,6 +1,7 @@
 package edu.artemiy.chat.app.websocket;
 
 import java.io.IOException;
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.stereotype.Component;
@@ -18,13 +19,16 @@ class ChatWebSocketHandler extends TextWebSocketHandler {
     private static final CloseStatus INVALID_MESSAGE = new CloseStatus(1007, "Invalid WebSocket message.");
 
     private final ChatWebSocketConnectionRegistry connectionRegistry;
+    private final ChatWebSocketPresenceCoordinator presenceCoordinator;
     private final ObjectMapper objectMapper;
 
     ChatWebSocketHandler(
         ChatWebSocketConnectionRegistry connectionRegistry,
+        ChatWebSocketPresenceCoordinator presenceCoordinator,
         ObjectMapper objectMapper
     ) {
         this.connectionRegistry = connectionRegistry;
+        this.presenceCoordinator = presenceCoordinator;
         this.objectMapper = objectMapper;
     }
 
@@ -46,11 +50,26 @@ class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        switch (controlMessage.type()) {
-            case "subscription.resume", "tab.activity", "tab.closed" -> {
-                return;
+        try {
+            switch (controlMessage.type()) {
+                case "subscription.resume" -> {
+                    return;
+                }
+                case "tab.activity" -> presenceCoordinator.handleTabActivity(
+                    session,
+                    authenticatedSession(session),
+                    controlMessage.tabKey(),
+                    controlMessage.lastActivityAt()
+                );
+                case "tab.closed" -> presenceCoordinator.handleTabClosed(
+                    session,
+                    authenticatedSession(session),
+                    controlMessage.tabKey()
+                );
+                default -> closeQuietly(session, CloseStatus.POLICY_VIOLATION);
             }
-            default -> closeQuietly(session, CloseStatus.POLICY_VIOLATION);
+        } catch (IllegalArgumentException exception) {
+            closeQuietly(session, CloseStatus.POLICY_VIOLATION);
         }
     }
 
@@ -62,6 +81,7 @@ class ChatWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        presenceCoordinator.handleConnectionClosed(session, status);
         connectionRegistry.unregister(session.getId());
     }
 
@@ -86,7 +106,16 @@ class ChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    private static AuthenticatedSession authenticatedSession(WebSocketSession session) {
+        AuthenticatedSession authenticatedSession = (AuthenticatedSession) session.getAttributes()
+            .get(ChatWebSocketHandshakeInterceptor.AUTHENTICATED_SESSION_ATTRIBUTE);
+        if (authenticatedSession == null) {
+            throw new IllegalArgumentException("Authenticated session is required.");
+        }
+        return authenticatedSession;
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record ClientControlMessage(String type) {
+    private record ClientControlMessage(String type, String tabKey, Instant lastActivityAt, String lastEventId) {
     }
 }

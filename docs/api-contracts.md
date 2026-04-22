@@ -63,7 +63,7 @@ It is intentionally specific enough to remove architectural ambiguity while stil
 | --- | --- | --- | --- |
 | `GET` | `/api/rooms` | List rooms for the caller | Supports `scope=joined` for the sidebar list and `scope=catalog` for public room discovery. Joined-room rows now include an HTTP-backed `unreadCount` for badge rendering |
 | `POST` | `/api/rooms` | Create room | Unique room name, public or private visibility |
-| `GET` | `/api/rooms/{roomId}` | Load room details and caller membership | Public rooms expose full details to authenticated, non-banned users. Private rooms expose full details only to members. Invited private-room users may load only `INVITED_PREVIEW`, which includes the room name and owner. Hidden or banned rooms must not leak information |
+| `GET` | `/api/rooms/{roomId}` | Load room details and caller membership | Public rooms expose full details to authenticated, non-banned users. Private rooms expose full details only to members. Invited private-room users may load only `INVITED_PREVIEW`, which includes the room name and owner. Hidden or banned rooms must not leak information. Milestone 6.2 adds derived `presence` to each returned member row |
 | `POST` | `/api/rooms/{roomId}/join` | Join a room | This is the single membership-entry path for both public rooms and accepted private invites. It must fail if the caller is banned or lacks a private-room invite |
 | `POST` | `/api/rooms/{roomId}/leave` | Leave a room | Owner must be denied and instructed to delete the room instead |
 | `POST` | `/api/rooms/{roomId}/invites` | Invite a user to a private room | Admin or owner only |
@@ -82,7 +82,7 @@ Milestone 4.2 builds on that foundation with unread-badge rendering and the HTTP
 
 | Method | Path | Purpose | Notes |
 | --- | --- | --- | --- |
-| `GET` | `/api/contacts` | List friends, pending requests, and block state | Returns `viewerUserId`, `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and `blockedUsers`. Each friend row includes `directDialogId` when a stable dialog exists plus an HTTP-backed `unreadCount` for that direct dialog |
+| `GET` | `/api/contacts` | List friends, pending requests, and block state | Returns `viewerUserId`, `friends`, `inboundPendingRequests`, `outboundPendingRequests`, and `blockedUsers`. Each friend row includes `directDialogId` when a stable dialog exists, an HTTP-backed `unreadCount` for that direct dialog, and derived `presence` |
 | `POST` | `/api/friend-requests` | Create friend request by username or user id | Requires exactly one of `userId` or `username`, supports optional `messageText`, auto-accepts the opposite-direction pending request when one already exists, and denies new requests while either user has blocked the other |
 | `POST` | `/api/friend-requests/{requestId}/accept` | Accept friend request | Recipient-only action that creates the friendship relation |
 | `POST` | `/api/friend-requests/{requestId}/reject` | Reject friend request | Recipient-only action that marks the request rejected and keeps no direct-dialog eligibility |
@@ -267,6 +267,11 @@ Milestone 4.3 currently fans out:
 - `session.revoked`
   - payload: `{ sessionId }`
 
+Milestone 6.2 additionally fans out:
+- `presence.updated`
+  - payload: `{ userId, presence }`
+  - `presence` is one of `ONLINE`, `AFK`, or `OFFLINE`
+
 ### Client Control Messages
 - `tab.activity`
   Sends the stable tab key plus the latest activity timestamp.
@@ -278,7 +283,7 @@ Milestone 4.3 currently fans out:
 Current backend behavior:
 - Milestone 4.3 accepts `subscription.resume` as a forward-compatible reconnect hint without server-side replay.
 - Milestone 4.4 browser clients now send `subscription.resume` with the last seen event id and refresh HTTP-backed room, contact, or direct-dialog state after reconnect.
-- `tab.activity` and `tab.closed` stay reserved for Milestone 6 presence handling.
+- Milestone 6.2 uses `tab.activity` and `tab.closed` for browser-tab presence tracking and fans out `presence.updated` to friends and shared-room members.
 
 ## History And Access Rules
 - Initial history load returns the newest page for the selected chat.

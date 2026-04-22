@@ -39,7 +39,7 @@ It builds on ADR 0001 and should be read together with:
 | Domain | Responsibilities | Source Of Truth |
 | --- | --- | --- |
 | Identity and sessions | Registration, login, logout, password lifecycle, persistent sessions, active session view and revocation, account deletion policy | PostgreSQL |
-| Presence | Per-tab activity tracking, user online and AFK transitions, low-latency presence fan-out | PostgreSQL plus in-process connection state |
+| Presence | Milestone 6 is complete: per-tab activity tracking, user online and AFK transitions, low-latency presence fan-out, and browser presence badges for contacts and shared-room members | PostgreSQL plus in-process connection state |
 | Contacts and direct messaging | Friend requests, accepted friendships, user blocks, centralized direct-message eligibility, stable direct-dialog identity, contacts-side unread badges, direct-dialog entry, and contacts-side account-deletion cleanup that preserves direct dialogs | PostgreSQL |
 | Rooms and moderation | Public catalog, private room membership, invitations, roles, bans, room deletion, moderation audit | PostgreSQL |
 | Messaging and history | Milestone 4 is complete: HTTP message send, reply, edit, delete, cursor-based history loading, forward-only unread markers, authenticated backend `/ws` fan-out, live room and direct-dialog browser updates, reconnect-driven HTTP refresh, and browser-side live session-revocation handling across rooms and direct dialogs | PostgreSQL |
@@ -79,7 +79,7 @@ It builds on ADR 0001 and should be read together with:
 5. Attachment upload and download authorization
    Uploads write metadata to PostgreSQL and file bytes to `storage/`. Downloads always re-check current room or direct-dialog eligibility so access revocation is immediate.
 6. Multi-tab presence transitions
-   Each tab reports activity with a stable client tab key. A user is `ONLINE` when at least one tab is active, `AFK` when connected tabs exist but all are inactive for more than one minute, and `OFFLINE` when no tab remains connected within the configured timeout window.
+   Milestone 6 is complete. Each tab reports activity with a stable client tab key over `/ws`, presence transitions fan out as `presence.updated`, and a user is `ONLINE` when at least one tab is active, `AFK` when connected tabs exist but all are inactive for more than one minute, and `OFFLINE` when no tab remains connected within the configured timeout window.
 7. XMPP client connectivity
    A user can connect through a Jabber/XMPP client using the chosen interoperability level, authenticate against the governed account model, and exchange messages through the same chat domain.
 8. Federated server traffic
@@ -101,5 +101,7 @@ The architected implementation order is fixed for the MVP:
 Each slice must leave behind updated docs, fresh validation evidence under `docs/evidence/`, and a bet or ADR review before the next slice starts. Detailed exit criteria live in `docs/mvp-delivery-plan.md` and `docs/governance/checklist.md`.
 
 ## Current Bets
-- B2 tracks whether the MVP can stay on PostgreSQL plus in-process live state without Redis.
 - B3 tracks which Java-compatible XMPP library and federation integration shape are the most pragmatic mandatory path.
+
+## Resolved Bet Notes
+- B2 is resolved by Milestone 6.2 evidence in favor of PostgreSQL plus in-process live state. Two-tab and two-browser probes stayed well under the two-second propagation target without introducing Redis.
