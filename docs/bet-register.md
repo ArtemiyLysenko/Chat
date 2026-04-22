@@ -19,8 +19,9 @@
 
 ## Open Questions
 - Does the Milestone 4.1 history paging default of 50 messages with a max of 100 remain appropriate once the real timeline UI and larger message histories are exercised?
-- Milestone 7.1 narrowed the local XMPP slice to TCP stream open, SASL `PLAIN`, bind, basic presence, and local one-to-one direct messages, with Smack `4.4.8` `smack-java8` plus `smack-tcp` plus `smack-im` used for interoperability tests only. The remaining B3 question is whether that same in-process shape stays pragmatic once two-node federation and traffic persistence are added.
-- What two-server compose topology is the cleanest path to the required federation validation and 50-plus clients per side load test?
+- Milestone 7.2 now proves the in-process XMPP path for two-node direct-message federation and persisted peer or traffic telemetry, with Smack `4.4.8` `smack-java8` plus `smack-tcp` plus `smack-im` still limited to interoperability tests only. The remaining B3 question is whether the same shape remains pragmatic once blocked or otherwise ineligible direct-message denial and the 50-plus-clients-per-side load target are exercised.
+- Milestone 7.2 currently maps federated direct messages onto mirrored local usernames on both nodes so inbound traffic can reuse the existing direct-dialog rules without a remote-identity table. Milestone 7.3 must confirm whether that assumption is sufficient for the required acceptance scope or needs a narrower follow-up decision.
+- `infra/docker/compose.federation.yaml` is now the current two-node validation path; Milestone 8.2 still needs to prove that topology under the required 50-plus clients per side load shape.
 
 ## Update Rule
 When a bet resolves, update this file and either:

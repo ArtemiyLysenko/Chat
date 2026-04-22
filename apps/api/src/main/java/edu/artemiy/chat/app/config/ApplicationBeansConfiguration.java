@@ -9,7 +9,7 @@ import edu.artemiy.chat.admin.api.AdminObservabilityQuery;
 import edu.artemiy.chat.attachments.spi.AttachmentStoragePort;
 import edu.artemiy.chat.core.kernel.ClockPort;
 import edu.artemiy.chat.federation.api.FederationAdminQuery;
-import edu.artemiy.chat.federation.api.FederationFeatureFactory;
+import edu.artemiy.chat.federation.api.FederationSettings;
 import edu.artemiy.chat.identity.api.IdentitySettings;
 
 @Configuration
@@ -29,13 +29,8 @@ class ApplicationBeansConfiguration {
     }
 
     @Bean
-    FederationAdminQuery federationAdminQuery(ClockPort clockPort, ChatProperties chatProperties) {
-        return FederationFeatureFactory.adminQuery(
-            clockPort,
-            chatProperties.getNodeId(),
-            chatProperties.getFederation().isEnabled(),
-            chatProperties.getFederation().getPeerDomain()
-        );
+    FederationSettings federationSettings(ChatProperties chatProperties) {
+        return new FederationSettings(chatProperties.getNodeId());
     }
 
     @Bean

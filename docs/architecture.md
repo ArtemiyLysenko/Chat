@@ -83,7 +83,7 @@ It builds on ADR 0001 and should be read together with:
 7. XMPP client connectivity
    Milestone 7.1 now supports the first governed Jabber slice inside the Spring Boot node: TCP stream open, SASL `PLAIN` login, resource bind, tombstoned-user denial, basic available or unavailable presence between connected friends, and local one-to-one direct-message interoperability mapped to the existing direct-dialog rules. Browser presence remains derived from browser tabs; XMPP client presence is currently adapter-local until the later federation slices land.
 8. Federated server traffic
-   Two independently configured server instances exchange eligible messages in both directions while preserving delivery, authorization, and observability guarantees.
+   Milestone 7.2 extends the same in-process adapter to a narrow two-node federation slice for one-to-one direct messages. Each node now persists `xmpp_client_sessions`, `federation_peers`, and `federation_traffic_samples`, and the current v1 mapping uses mirrored local usernames on both nodes so inbound federated messages can reuse the existing direct-dialog eligibility and persistence rules without introducing a separate remote-identity table.
 9. Jabber administration and federation insight
    Administrators can inspect current Jabber/XMPP connections and federation traffic statistics from the web UI without leaving the governed application surface.
 

@@ -68,7 +68,8 @@ class XmppSessionRegistry {
     }
 
     void sendDirectMessage(UUID recipientUserId, String fromJid, UUID stanzaId, String bodyText) {
-        sessions(recipientUserId).forEach(session ->
+        List<XmppConnectionSession> recipientSessions = sessions(recipientUserId);
+        recipientSessions.forEach(session ->
             session.handler().sendMessage(fromJid, session.fullJid(), stanzaId, bodyText)
         );
     }

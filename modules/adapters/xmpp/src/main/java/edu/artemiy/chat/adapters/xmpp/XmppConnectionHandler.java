@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.xml.stream.XMLInputFactory;
@@ -21,6 +22,9 @@ import org.slf4j.LoggerFactory;
 import edu.artemiy.chat.contacts.api.ContactsException;
 import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.contacts.api.DirectDialogSummary;
+import edu.artemiy.chat.contacts.api.DirectMessageEligibility;
+import edu.artemiy.chat.federation.api.FederationTelemetry;
+import edu.artemiy.chat.federation.api.JabberConnectionStatus;
 import edu.artemiy.chat.identity.api.ResolvedUser;
 import edu.artemiy.chat.identity.api.UserDirectoryQuery;
 import edu.artemiy.chat.identity.api.UsernamePasswordAuthenticationCommand;
@@ -36,13 +40,17 @@ final class XmppConnectionHandler implements Runnable {
     private static final String STREAM_NAMESPACE = "http://etherx.jabber.org/streams";
     private static final String SASL_NAMESPACE = "urn:ietf:params:xml:ns:xmpp-sasl";
     private static final String BIND_NAMESPACE = "urn:ietf:params:xml:ns:xmpp-bind";
+    private static final String FEDERATION_NAMESPACE = "urn:chat:federation:1";
 
     private final Socket socket;
     private final XmppProperties properties;
+    private final FederationTransportProperties federationProperties;
     private final UserDirectoryQuery userDirectoryQuery;
     private final ContactsService contactsService;
     private final MessagingService messagingService;
     private final XmppSessionRegistry sessionRegistry;
+    private final FederationTelemetry federationTelemetry;
+    private final XmppFederationGateway federationGateway;
     private final XMLInputFactory inputFactory = XMLInputFactory.newFactory();
     private final Object writeLock = new Object();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -50,21 +58,30 @@ final class XmppConnectionHandler implements Runnable {
     private BufferedWriter writer;
     private ResolvedUser authenticatedUser;
     private XmppConnectionSession session;
+    private String clientConnectionId;
+    private String authenticatedPeerDomain;
+    private JabberConnectionStatus closingStatus;
 
     XmppConnectionHandler(
         Socket socket,
         XmppProperties properties,
+        FederationTransportProperties federationProperties,
         UserDirectoryQuery userDirectoryQuery,
         ContactsService contactsService,
         MessagingService messagingService,
-        XmppSessionRegistry sessionRegistry
+        XmppSessionRegistry sessionRegistry,
+        FederationTelemetry federationTelemetry,
+        XmppFederationGateway federationGateway
     ) {
         this.socket = socket;
         this.properties = properties;
+        this.federationProperties = federationProperties;
         this.userDirectoryQuery = userDirectoryQuery;
         this.contactsService = contactsService;
         this.messagingService = messagingService;
         this.sessionRegistry = sessionRegistry;
+        this.federationTelemetry = federationTelemetry;
+        this.federationGateway = federationGateway;
     }
 
     @Override
@@ -77,9 +94,18 @@ final class XmppConnectionHandler implements Runnable {
             if (!closed.get()) {
                 log.debug("XMPP connection closed", exception);
             }
+            if (clientConnectionId != null && closingStatus == null) {
+                closingStatus = JabberConnectionStatus.ERROR;
+            }
         }
         finally {
             sessionRegistry.remove(session);
+            if (clientConnectionId != null) {
+                federationTelemetry.recordXmppClientClosed(
+                    clientConnectionId,
+                    closingStatus == null ? JabberConnectionStatus.DISCONNECTED : closingStatus
+                );
+            }
             closed.set(true);
         }
     }
@@ -130,6 +156,10 @@ final class XmppConnectionHandler implements Runnable {
             handleAuthentication(reader);
             return;
         }
+        if (FEDERATION_NAMESPACE.equals(namespace) && "auth".equals(localName)) {
+            handleFederationAuthentication(reader);
+            return;
+        }
         if ("iq".equals(localName)) {
             handleIq(reader);
             return;
@@ -152,11 +182,18 @@ final class XmppConnectionHandler implements Runnable {
             return;
         }
         sendRaw(XmppXml.streamOpen(properties.getDomain(), UUID.randomUUID().toString()));
-        sendRaw(authenticatedUser == null ? XmppXml.preAuthenticationFeatures() : XmppXml.postAuthenticationFeatures());
+        sendRaw(authenticatedUser == null && authenticatedPeerDomain == null
+            ? XmppXml.preAuthenticationFeatures()
+            : XmppXml.postAuthenticationFeatures());
     }
 
     private void handleAuthentication(XMLStreamReader reader) throws XMLStreamException, IOException {
+        if (clientConnectionId == null) {
+            clientConnectionId = UUID.randomUUID().toString();
+            federationTelemetry.recordXmppClientAuthenticating(clientConnectionId, remoteAddress());
+        }
         if (!"PLAIN".equals(attribute(reader, "mechanism"))) {
+            closingStatus = JabberConnectionStatus.ERROR;
             sendRaw(XmppXml.authenticationFailure());
             sendRaw(XmppXml.streamClose());
             closeSilently();
@@ -172,12 +209,30 @@ final class XmppConnectionHandler implements Runnable {
             );
         }
         catch (RuntimeException exception) {
+            closingStatus = JabberConnectionStatus.ERROR;
             sendRaw(XmppXml.authenticationFailure());
             sendRaw(XmppXml.streamClose());
             closeSilently();
             return;
         }
         sendRaw(XmppXml.authenticationSuccess());
+    }
+
+    private void handleFederationAuthentication(XMLStreamReader reader) throws XMLStreamException, IOException {
+        String fromDomain = normalize(attribute(reader, "from"));
+        String sharedSecret = attribute(reader, "secret");
+        drainCurrentElement(reader, "auth");
+        if (!federationProperties.isEnabled()
+            || !federationProperties.matchesPeerDomain(fromDomain)
+            || !federationProperties.hasSharedSecret()
+            || !federationProperties.getSharedSecret().equals(sharedSecret)) {
+            sendRaw(XmppXml.federationAuthFailure());
+            sendRaw(XmppXml.streamClose());
+            closeSilently();
+            return;
+        }
+        authenticatedPeerDomain = fromDomain;
+        sendRaw(XmppXml.federationAuthSuccess());
     }
 
     private void handleIq(XMLStreamReader reader) throws XMLStreamException, IOException {
@@ -220,6 +275,13 @@ final class XmppConnectionHandler implements Runnable {
             new AtomicBoolean(false)
         );
         sessionRegistry.register(session);
+        federationTelemetry.recordXmppClientConnected(
+            clientConnectionId,
+            authenticatedUser.userId(),
+            session.fullJid(),
+            session.resource(),
+            remoteAddress()
+        );
         sendRaw(XmppXml.bindResult(stanzaId, session.fullJid()));
     }
 
@@ -237,6 +299,7 @@ final class XmppConnectionHandler implements Runnable {
     }
 
     private void handleMessage(XMLStreamReader reader) throws XMLStreamException, IOException {
+        String from = attribute(reader, "from");
         String to = attribute(reader, "to");
         String stanzaId = attribute(reader, "id");
         String bodyText = null;
@@ -251,6 +314,10 @@ final class XmppConnectionHandler implements Runnable {
             }
         }
 
+        if (authenticatedPeerDomain != null) {
+            handleFederatedMessage(from, to, stanzaId, bodyText);
+            return;
+        }
         if (session == null || bodyText == null || bodyText.isBlank()) {
             return;
         }
@@ -264,7 +331,7 @@ final class XmppConnectionHandler implements Runnable {
             return;
         }
         if (!properties.getDomain().equalsIgnoreCase(address.domain())) {
-            sendRaw(XmppXml.messageError(session.fullJid(), address.bareJid(), stanzaId, "remote-server-not-found"));
+            handleOutboundFederatedMessage(address, stanzaId, bodyText.trim());
             return;
         }
 
@@ -283,6 +350,107 @@ final class XmppConnectionHandler implements Runnable {
         }
         catch (ContactsException | MessagingException exception) {
             sendRaw(XmppXml.messageError(session.fullJid(), recipient.username() + "@" + properties.getDomain(), stanzaId, "not-allowed"));
+        }
+    }
+
+    private void handleOutboundFederatedMessage(XmppAddress recipientAddress, String stanzaId, String bodyText) {
+        if (!federationProperties.isEnabled() || !federationProperties.matchesPeerDomain(recipientAddress.domain())) {
+            sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "remote-server-not-found"));
+            return;
+        }
+        ResolvedUser mirroredRecipient = recipientAddress.localpart() == null
+            ? null
+            : userDirectoryQuery.findActiveUserByUsername(recipientAddress.localpart()).orElse(null);
+        if (mirroredRecipient == null) {
+            sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "item-not-found"));
+            federationTelemetry.recordFederationError(federationProperties.normalizedPeerDomain(), federationProperties.configJson());
+            return;
+        }
+        try {
+            if (contactsService.evaluateDirectMessageEligibility(session.userId(), mirroredRecipient.userId())
+                != DirectMessageEligibility.ELIGIBLE) {
+                sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "not-allowed"));
+                return;
+            }
+        }
+        catch (ContactsException exception) {
+            sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "not-allowed"));
+            federationTelemetry.recordFederationError(federationProperties.normalizedPeerDomain(), federationProperties.configJson());
+            return;
+        }
+
+        try {
+            log.debug("Forwarding federated direct message {} -> {}", session.bareJid(), recipientAddress.bareJid());
+            federationGateway.forwardDirectMessage(session.bareJid(), recipientAddress.bareJid(), bodyText);
+            federationTelemetry.recordFederationOutboundMessage(
+                federationProperties.normalizedPeerDomain(),
+                federationProperties.configJson()
+            );
+        }
+        catch (XmppFederationGateway.FederationDeliveryException | IOException | XMLStreamException exception) {
+            log.debug(
+                "Federated delivery {} -> {} failed: {}",
+                session.bareJid(),
+                recipientAddress.bareJid(),
+                exception.getMessage(),
+                exception
+            );
+            federationTelemetry.recordFederationError(
+                federationProperties.normalizedPeerDomain(),
+                federationProperties.configJson()
+            );
+            sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "service-unavailable"));
+        }
+    }
+
+    private void handleFederatedMessage(String from, String to, String stanzaId, String bodyText) {
+        if (bodyText == null || bodyText.isBlank()) {
+            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            sendRaw(XmppXml.federationDeliveryError(stanzaId, "bad-request"));
+            return;
+        }
+        XmppAddress senderAddress;
+        XmppAddress recipientAddress;
+        try {
+            senderAddress = XmppAddress.parse(from);
+            recipientAddress = XmppAddress.parse(to);
+        }
+        catch (IllegalArgumentException exception) {
+            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            sendRaw(XmppXml.federationDeliveryError(stanzaId, "jid-malformed"));
+            return;
+        }
+        if (senderAddress.localpart() == null
+            || recipientAddress.localpart() == null
+            || !normalize(senderAddress.domain()).equals(authenticatedPeerDomain)
+            || !properties.getDomain().equalsIgnoreCase(recipientAddress.domain())) {
+            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            sendRaw(XmppXml.federationDeliveryError(stanzaId, "forbidden"));
+            return;
+        }
+
+        ResolvedUser mirroredSender = userDirectoryQuery.findActiveUserByUsername(senderAddress.localpart()).orElse(null);
+        ResolvedUser recipient = userDirectoryQuery.findActiveUserByUsername(recipientAddress.localpart()).orElse(null);
+        if (mirroredSender == null || recipient == null) {
+            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            sendRaw(XmppXml.federationDeliveryError(stanzaId, "item-not-found"));
+            return;
+        }
+
+        try {
+            log.debug("Persisting inbound federated message {} -> {}", senderAddress.bareJid(), recipientAddress.bareJid());
+            DirectDialogSummary dialog = contactsService.ensureDirectDialog(mirroredSender.userId(), recipient.userId());
+            messagingService.sendMessage(
+                mirroredSender.userId(),
+                new SendMessageCommand(new ChatTargetRef(ChatTargetType.DIRECT, dialog.dialogId()), bodyText.trim())
+            );
+            federationTelemetry.recordFederationInboundMessage(authenticatedPeerDomain, federationProperties.configJson());
+            log.debug("Acknowledging inbound federated stanza {} from {}", stanzaId, authenticatedPeerDomain);
+            sendRaw(XmppXml.federationAck(stanzaId));
+        }
+        catch (ContactsException | MessagingException exception) {
+            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            sendRaw(XmppXml.federationDeliveryError(stanzaId, "not-allowed"));
         }
     }
 
@@ -328,5 +496,13 @@ final class XmppConnectionHandler implements Runnable {
                 closeSilently();
             }
         }
+    }
+
+    private String remoteAddress() {
+        return String.valueOf(socket.getRemoteSocketAddress());
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 }

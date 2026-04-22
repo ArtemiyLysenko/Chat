@@ -33,10 +33,13 @@ chat:
     cookie-name: ${CHAT_AUTH_COOKIE_NAME:CHAT_SESSION}
     session-ttl: ${CHAT_AUTH_SESSION_TTL:P30D}
     password-reset-ttl: ${CHAT_AUTH_PASSWORD_RESET_TTL:PT15M}
-    secure-cookie: true
+    secure-cookie: ${CHAT_AUTH_SECURE_COOKIE:true}
   federation:
     enabled: ${CHAT_FEDERATION_ENABLED:false}
     peer-domain: ${CHAT_FEDERATION_PEER_DOMAIN:}
+    peer-host: ${CHAT_FEDERATION_PEER_HOST:}
+    peer-port: ${CHAT_FEDERATION_PEER_PORT:5222}
+    shared-secret: ${CHAT_FEDERATION_SHARED_SECRET:}
   xmpp:
     enabled: ${CHAT_XMPP_ENABLED:true}
     domain: ${CHAT_XMPP_DOMAIN:localhost}

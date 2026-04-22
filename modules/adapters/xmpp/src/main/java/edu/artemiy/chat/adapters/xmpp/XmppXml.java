@@ -13,13 +13,19 @@ final class XmppXml {
             """.formatted(escape(domain), escape(streamId));
     }
 
+    static String federationStreamOpen(String fromDomain, String toDomain, String streamId) {
+        return """
+            <stream:stream xmlns='jabber:server' to='%s' xmlns:stream='http://etherx.jabber.org/streams' version='1.0' from='%s' xml:lang='en-US' id='%s'>
+            """.formatted(escape(toDomain), escape(fromDomain), escape(streamId));
+    }
+
     static String streamClose() {
         return "</stream:stream>";
     }
 
     static String preAuthenticationFeatures() {
         return """
-            <stream:features><mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><mechanism>PLAIN</mechanism></mechanisms></stream:features>
+            <stream:features><mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><mechanism>PLAIN</mechanism></mechanisms><federation xmlns='urn:chat:federation:1'/></stream:features>
             """;
     }
 
@@ -35,6 +41,32 @@ final class XmppXml {
 
     static String authenticationFailure() {
         return "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'><not-authorized/></failure>";
+    }
+
+    static String federationAuthRequest(String fromDomain, String sharedSecret) {
+        return """
+            <auth xmlns='urn:chat:federation:1' from='%s' secret='%s'/>
+            """.formatted(escape(fromDomain), escape(sharedSecret));
+    }
+
+    static String federationAuthSuccess() {
+        return "<success xmlns='urn:chat:federation:1'/>";
+    }
+
+    static String federationAuthFailure() {
+        return "<failure xmlns='urn:chat:federation:1'><not-authorized/></failure>";
+    }
+
+    static String federationAck(String stanzaId) {
+        return """
+            <ack xmlns='urn:chat:federation:1' id='%s'/>
+            """.formatted(escape(stanzaId == null ? "" : stanzaId));
+    }
+
+    static String federationDeliveryError(String stanzaId, String condition) {
+        return """
+            <error xmlns='urn:chat:federation:1' id='%s' condition='%s'/>
+            """.formatted(escape(stanzaId == null ? "" : stanzaId), escape(condition));
     }
 
     static String hostUnknownError() {

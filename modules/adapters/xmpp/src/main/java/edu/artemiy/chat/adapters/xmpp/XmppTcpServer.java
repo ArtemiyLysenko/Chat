@@ -15,6 +15,7 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 
 import edu.artemiy.chat.contacts.api.ContactsService;
+import edu.artemiy.chat.federation.api.FederationTelemetry;
 import edu.artemiy.chat.identity.api.UserDirectoryQuery;
 import edu.artemiy.chat.messaging.api.MessagingService;
 
@@ -24,10 +25,13 @@ public final class XmppTcpServer implements SmartLifecycle {
     private static final Logger log = LoggerFactory.getLogger(XmppTcpServer.class);
 
     private final XmppProperties properties;
+    private final FederationTransportProperties federationProperties;
     private final UserDirectoryQuery userDirectoryQuery;
     private final ContactsService contactsService;
     private final MessagingService messagingService;
     private final XmppSessionRegistry sessionRegistry;
+    private final FederationTelemetry federationTelemetry;
+    private final XmppFederationGateway federationGateway;
     private final ExecutorService acceptExecutor = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "chat-xmpp-accept");
         thread.setDaemon(true);
@@ -44,16 +48,22 @@ public final class XmppTcpServer implements SmartLifecycle {
 
     XmppTcpServer(
         XmppProperties properties,
+        FederationTransportProperties federationProperties,
         UserDirectoryQuery userDirectoryQuery,
         ContactsService contactsService,
         MessagingService messagingService,
-        XmppSessionRegistry sessionRegistry
+        XmppSessionRegistry sessionRegistry,
+        FederationTelemetry federationTelemetry,
+        XmppFederationGateway federationGateway
     ) {
         this.properties = properties;
+        this.federationProperties = federationProperties;
         this.userDirectoryQuery = userDirectoryQuery;
         this.contactsService = contactsService;
         this.messagingService = messagingService;
         this.sessionRegistry = sessionRegistry;
+        this.federationTelemetry = federationTelemetry;
+        this.federationGateway = federationGateway;
     }
 
     @Override
@@ -111,10 +121,14 @@ public final class XmppTcpServer implements SmartLifecycle {
                 connectionExecutor.execute(new XmppConnectionHandler(
                     socket,
                     properties,
+                    federationProperties,
                     userDirectoryQuery,
                     contactsService,
                     messagingService,
                     sessionRegistry
+                    ,
+                    federationTelemetry,
+                    federationGateway
                 ));
             }
             catch (IOException exception) {

@@ -29,11 +29,19 @@ services:
       SPRING_DATASOURCE_USERNAME: chat
       SPRING_DATASOURCE_PASSWORD: chat
       CHAT_STORAGE_ROOT: /app/storage
+      CHAT_AUTH_SECURE_COOKIE: "false"
+      CHAT_XMPP_ENABLED: "true"
+      CHAT_XMPP_DOMAIN: node-a.local
+      CHAT_XMPP_PORT: 5222
       CHAT_NODE_ID: node-a
       CHAT_FEDERATION_ENABLED: "true"
       CHAT_FEDERATION_PEER_DOMAIN: node-b.local
+      CHAT_FEDERATION_PEER_HOST: app-b
+      CHAT_FEDERATION_PEER_PORT: 5222
+      CHAT_FEDERATION_SHARED_SECRET: federation-shared-secret
     ports:
       - "8081:8080"
+      - "5223:5222"
     volumes:
       - ../../storage/node-a:/app/storage
 
@@ -65,10 +73,18 @@ services:
       SPRING_DATASOURCE_USERNAME: chat
       SPRING_DATASOURCE_PASSWORD: chat
       CHAT_STORAGE_ROOT: /app/storage
+      CHAT_AUTH_SECURE_COOKIE: "false"
+      CHAT_XMPP_ENABLED: "true"
+      CHAT_XMPP_DOMAIN: node-b.local
+      CHAT_XMPP_PORT: 5222
       CHAT_NODE_ID: node-b
       CHAT_FEDERATION_ENABLED: "true"
       CHAT_FEDERATION_PEER_DOMAIN: node-a.local
+      CHAT_FEDERATION_PEER_HOST: app-a
+      CHAT_FEDERATION_PEER_PORT: 5222
+      CHAT_FEDERATION_SHARED_SECRET: federation-shared-secret
     ports:
       - "8082:8080"
+      - "5224:5222"
     volumes:
       - ../../storage/node-b:/app/storage
