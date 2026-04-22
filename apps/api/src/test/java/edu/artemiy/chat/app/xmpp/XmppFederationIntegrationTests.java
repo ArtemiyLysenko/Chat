@@ -157,6 +157,100 @@ class XmppFederationIntegrationTests extends PostgresIntegrationSupport {
         }
     }
 
+    @Test
+    void federatedMessagesRespectRemoteBlockDenialsAndSurfaceNotAllowed() throws Exception {
+        PostgresDatabase databaseA = createIsolatedDatabase("xmpp_federation_denial_a");
+        PostgresDatabase databaseB = createIsolatedDatabase("xmpp_federation_denial_b");
+        int httpPortA = freePort();
+        int httpPortB = freePort();
+        int xmppPortA = freePort();
+        int xmppPortB = freePort();
+
+        try (FederationNode nodeA = FederationNode.start(
+            "node-a",
+            "node-a.local",
+            httpPortA,
+            xmppPortA,
+            "node-b.local",
+            xmppPortB,
+            databaseA
+        ); FederationNode nodeB = FederationNode.start(
+            "node-b",
+            "node-b.local",
+            httpPortB,
+            xmppPortB,
+            "node-a.local",
+            xmppPortA,
+            databaseB
+        )) {
+            TestUser captainOnA = nodeA.registerUser("captain");
+            TestUser scoutOnA = nodeA.registerUser("scout");
+            nodeA.befriend(captainOnA, scoutOnA);
+
+            TestUser captainOnB = nodeB.registerUser("captain");
+            TestUser scoutOnB = nodeB.registerUser("scout");
+            nodeB.befriend(captainOnB, scoutOnB);
+            DirectDialogSummary dialogOnB = nodeB.contactsService.ensureDirectDialog(captainOnB.userId(), scoutOnB.userId());
+            nodeB.block(scoutOnB, captainOnB);
+
+            XMPPTCPConnection captainConnection = nodeA.connect("captain", "bridge-a");
+            try {
+                StanzaQueue outboundErrors = new StanzaQueue();
+                captainConnection.addAsyncStanzaListener(
+                    outboundErrors,
+                    stanza -> stanza instanceof Message message && Message.Type.error.equals(message.getType())
+                );
+
+                Message deniedMessage = new Message(JidCreate.entityBareFrom("scout@node-b.local"), Message.Type.chat);
+                deniedMessage.setBody("Denied by remote block");
+                captainConnection.sendStanza(deniedMessage);
+
+                Message rejection = outboundErrors.await(Message.class);
+                assertThat(rejection.getType()).isEqualTo(Message.Type.error);
+                assertThat(rejection.getError()).isNotNull();
+                assertThat(rejection.getError().getCondition().toString()).isEqualTo("not-allowed");
+
+                assertThat(nodeB.messagingService.readMessageHistory(
+                    scoutOnB.userId(),
+                    new ReadMessageHistoryQuery(new ChatTargetRef(ChatTargetType.DIRECT, dialogOnB.dialogId()), null, 50)
+                ).items()).isEmpty();
+
+                assertThat(nodeA.adminObservability.federationPeers())
+                    .singleElement()
+                    .satisfies(snapshot -> {
+                        assertThat(snapshot.peerDomain()).isEqualTo("node-b.local");
+                        assertThat(snapshot.status().name()).isEqualTo("UP");
+                    });
+                assertThat(nodeB.adminObservability.federationPeers())
+                    .singleElement()
+                    .satisfies(snapshot -> {
+                        assertThat(snapshot.peerDomain()).isEqualTo("node-a.local");
+                        assertThat(snapshot.status().name()).isEqualTo("UP");
+                    });
+
+                assertThat(nodeA.adminObservability.federationTraffic())
+                    .first()
+                    .satisfies(snapshot -> {
+                        assertThat(snapshot.peerDomain()).isEqualTo("node-b.local");
+                        assertThat(snapshot.outboundMessages()).isZero();
+                        assertThat(snapshot.outboundStanzas()).isEqualTo(1);
+                        assertThat(snapshot.errorCount()).isEqualTo(1);
+                    });
+                assertThat(nodeB.adminObservability.federationTraffic())
+                    .first()
+                    .satisfies(snapshot -> {
+                        assertThat(snapshot.peerDomain()).isEqualTo("node-a.local");
+                        assertThat(snapshot.inboundMessages()).isZero();
+                        assertThat(snapshot.inboundStanzas()).isEqualTo(1);
+                        assertThat(snapshot.errorCount()).isEqualTo(1);
+                    });
+            }
+            finally {
+                disconnectQuietly(captainConnection);
+            }
+        }
+    }
+
     private static int freePort() {
         try (ServerSocket serverSocket = new ServerSocket(0)) {
             return serverSocket.getLocalPort();
@@ -260,6 +354,10 @@ class XmppFederationIntegrationTests extends PostgresIntegrationSupport {
                 new CreateFriendRequestCommand(null, second.username(), null)
             );
             contactsService.acceptFriendRequest(second.userId(), submission.requestId());
+        }
+
+        void block(TestUser blocker, TestUser blocked) {
+            contactsService.blockUser(blocker.userId(), blocked.userId());
         }
 
         XMPPTCPConnection connect(String username, String resource) throws Exception {

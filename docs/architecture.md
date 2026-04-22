@@ -81,9 +81,9 @@ It builds on ADR 0001 and should be read together with:
 6. Multi-tab presence transitions
    Milestone 6 is complete. Each tab reports activity with a stable client tab key over `/ws`, presence transitions fan out as `presence.updated`, and a user is `ONLINE` when at least one tab is active, `AFK` when connected tabs exist but all are inactive for more than one minute, and `OFFLINE` when no tab remains connected within the configured timeout window.
 7. XMPP client connectivity
-   Milestone 7.1 now supports the first governed Jabber slice inside the Spring Boot node: TCP stream open, SASL `PLAIN` login, resource bind, tombstoned-user denial, basic available or unavailable presence between connected friends, and local one-to-one direct-message interoperability mapped to the existing direct-dialog rules. Browser presence remains derived from browser tabs; XMPP client presence is currently adapter-local until the later federation slices land.
+   Milestone 7 is complete inside the governed Spring Boot node: TCP stream open, SASL `PLAIN` login, resource bind, tombstoned-user denial, basic available or unavailable presence between connected friends, and local one-to-one direct-message interoperability mapped to the existing direct-dialog rules. XMPP direct messages now reuse the same eligibility checks as the HTTP path, so blocked or otherwise ineligible sends are denied with protocol errors instead of bypassing the core contacts rules. Browser presence remains derived from browser tabs; XMPP client presence is currently adapter-local while browser presence remains tab-derived.
 8. Federated server traffic
-   Milestone 7.2 extends the same in-process adapter to a narrow two-node federation slice for one-to-one direct messages. Each node now persists `xmpp_client_sessions`, `federation_peers`, and `federation_traffic_samples`, and the current v1 mapping uses mirrored local usernames on both nodes so inbound federated messages can reuse the existing direct-dialog eligibility and persistence rules without introducing a separate remote-identity table.
+   Milestone 7 also extends the same in-process adapter to a narrow two-node federation slice for one-to-one direct messages. Each node now persists `xmpp_client_sessions`, `federation_peers`, and `federation_traffic_samples`, blocked or otherwise ineligible federated direct messages surface protocol-level denials without marking a reachable peer down, and the current v1 mapping still uses mirrored local usernames on both nodes so inbound federated messages can reuse the existing direct-dialog eligibility and persistence rules without introducing a separate remote-identity table.
 9. Jabber administration and federation insight
    Administrators can inspect current Jabber/XMPP connections and federation traffic statistics from the web UI without leaving the governed application surface.
 
@@ -101,7 +101,7 @@ The architected implementation order is fixed for the MVP:
 Each slice must leave behind updated docs, fresh validation evidence under `docs/evidence/`, and a bet or ADR review before the next slice starts. Detailed exit criteria live in `docs/mvp-delivery-plan.md` and `docs/governance/checklist.md`.
 
 ## Current Bets
-- B3 tracks whether the narrowed in-process XMPP path proven in Milestone 7.1 can extend cleanly to federation, persisted peer state, and load validation without introducing a companion XMPP server.
+- B3 now tracks whether the Milestone 7-complete in-process XMPP path can meet the required Milestone 8.2 two-node 50-plus-clients-per-side load validation without introducing a companion XMPP server.
 
 ## Resolved Bet Notes
 - B2 is resolved by Milestone 6.2 evidence in favor of PostgreSQL plus in-process live state. Two-tab and two-browser probes stayed well under the two-second propagation target without introducing Redis.

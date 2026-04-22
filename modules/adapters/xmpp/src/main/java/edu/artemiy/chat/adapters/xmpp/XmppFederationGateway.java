@@ -114,8 +114,15 @@ final class XmppFederationGateway {
 
     static final class FederationDeliveryException extends Exception {
 
-        FederationDeliveryException(String message) {
-            super(message);
+        private final String condition;
+
+        FederationDeliveryException(String condition) {
+            super(condition);
+            this.condition = condition;
+        }
+
+        String condition() {
+            return condition;
         }
     }
 }

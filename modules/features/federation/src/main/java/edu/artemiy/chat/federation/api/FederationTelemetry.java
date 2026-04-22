@@ -20,5 +20,9 @@ public interface FederationTelemetry {
 
     void recordFederationOutboundMessage(String peerDomain, String configJson);
 
+    void recordFederationInboundRejectedMessage(String peerDomain, String configJson);
+
+    void recordFederationOutboundRejectedMessage(String peerDomain, String configJson);
+
     void recordFederationError(String peerDomain, String configJson);
 }

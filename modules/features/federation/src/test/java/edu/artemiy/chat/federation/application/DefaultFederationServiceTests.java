@@ -35,6 +35,8 @@ class DefaultFederationServiceTests {
         service.recordXmppClientConnected("session-1", UUID.randomUUID(), "captain@node-a.local/desk", "desk", "127.0.0.1");
         service.recordFederationOutboundMessage("node-b.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
         service.recordFederationInboundMessage("node-b.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
+        service.recordFederationOutboundRejectedMessage("node-b.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
+        service.recordFederationInboundRejectedMessage("node-b.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
         service.recordFederationError("node-b.local", "{\"host\":\"127.0.0.1\",\"port\":5224}");
         service.recordXmppClientClosed("session-1", JabberConnectionStatus.DISCONNECTED);
 
@@ -47,10 +49,28 @@ class DefaultFederationServiceTests {
             );
         assertThat(federationPersistencePort.peerSnapshots)
             .extracting(FederationPeerSnapshot::status)
-            .containsExactly(FederationPeerStatus.UP, FederationPeerStatus.UP, FederationPeerStatus.DOWN);
+            .containsExactly(
+                FederationPeerStatus.UP,
+                FederationPeerStatus.UP,
+                FederationPeerStatus.UP,
+                FederationPeerStatus.UP,
+                FederationPeerStatus.DOWN
+            );
         assertThat(federationPersistencePort.trafficSnapshots)
-            .extracting(FederationTrafficSnapshot::errorCount)
-            .containsExactly(0L, 0L, 1L);
+            .extracting(snapshot -> List.of(
+                snapshot.inboundMessages(),
+                snapshot.outboundMessages(),
+                snapshot.inboundStanzas(),
+                snapshot.outboundStanzas(),
+                snapshot.errorCount()
+            ))
+            .containsExactly(
+                List.of(0L, 1L, 0L, 1L, 0L),
+                List.of(1L, 0L, 1L, 0L, 0L),
+                List.of(0L, 0L, 0L, 1L, 1L),
+                List.of(0L, 0L, 1L, 0L, 1L),
+                List.of(0L, 0L, 0L, 0L, 1L)
+            );
         assertThat(service.listJabberConnections()).isSameAs(federationPersistencePort.jabberConnections);
         assertThat(service.listFederationPeers()).isSameAs(federationPersistencePort.peerSnapshots);
         assertThat(service.listTrafficSnapshots()).isSameAs(federationPersistencePort.trafficSnapshots);

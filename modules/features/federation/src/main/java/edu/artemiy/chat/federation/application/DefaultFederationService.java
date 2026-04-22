@@ -91,6 +91,18 @@ public final class DefaultFederationService implements FederationService {
     }
 
     @Override
+    public void recordFederationInboundRejectedMessage(String peerDomain, String configJson) {
+        federationPersistencePort.upsertFederationPeer(peerDomain, FederationPeerStatus.UP, clockPort.now(), null, configJson);
+        federationPersistencePort.appendFederationTrafficSample(peerDomain, configJson, 0, 0, 1, 0, 1, clockPort.now());
+    }
+
+    @Override
+    public void recordFederationOutboundRejectedMessage(String peerDomain, String configJson) {
+        federationPersistencePort.upsertFederationPeer(peerDomain, FederationPeerStatus.UP, clockPort.now(), null, configJson);
+        federationPersistencePort.appendFederationTrafficSample(peerDomain, configJson, 0, 0, 0, 1, 1, clockPort.now());
+    }
+
+    @Override
     public void recordFederationError(String peerDomain, String configJson) {
         federationPersistencePort.upsertFederationPeer(peerDomain, FederationPeerStatus.DOWN, null, clockPort.now(), configJson);
         federationPersistencePort.appendFederationTrafficSample(peerDomain, configJson, 0, 0, 0, 0, 1, clockPort.now());

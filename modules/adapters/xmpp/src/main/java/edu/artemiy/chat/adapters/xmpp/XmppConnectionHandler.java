@@ -363,7 +363,6 @@ final class XmppConnectionHandler implements Runnable {
             : userDirectoryQuery.findActiveUserByUsername(recipientAddress.localpart()).orElse(null);
         if (mirroredRecipient == null) {
             sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "item-not-found"));
-            federationTelemetry.recordFederationError(federationProperties.normalizedPeerDomain(), federationProperties.configJson());
             return;
         }
         try {
@@ -375,7 +374,6 @@ final class XmppConnectionHandler implements Runnable {
         }
         catch (ContactsException exception) {
             sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "not-allowed"));
-            federationTelemetry.recordFederationError(federationProperties.normalizedPeerDomain(), federationProperties.configJson());
             return;
         }
 
@@ -387,7 +385,30 @@ final class XmppConnectionHandler implements Runnable {
                 federationProperties.configJson()
             );
         }
-        catch (XmppFederationGateway.FederationDeliveryException | IOException | XMLStreamException exception) {
+        catch (XmppFederationGateway.FederationDeliveryException exception) {
+            String failureCondition = mapFederationFailureCondition(exception.condition());
+            log.debug(
+                "Federated delivery {} -> {} failed: {}",
+                session.bareJid(),
+                recipientAddress.bareJid(),
+                exception.condition(),
+                exception
+            );
+            if (isPolicyRejectionCondition(failureCondition)) {
+                federationTelemetry.recordFederationOutboundRejectedMessage(
+                    federationProperties.normalizedPeerDomain(),
+                    federationProperties.configJson()
+                );
+                sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, failureCondition));
+                return;
+            }
+            federationTelemetry.recordFederationError(
+                federationProperties.normalizedPeerDomain(),
+                federationProperties.configJson()
+            );
+            sendRaw(XmppXml.messageError(session.fullJid(), recipientAddress.bareJid(), stanzaId, "service-unavailable"));
+        }
+        catch (IOException | XMLStreamException exception) {
             log.debug(
                 "Federated delivery {} -> {} failed: {}",
                 session.bareJid(),
@@ -405,7 +426,7 @@ final class XmppConnectionHandler implements Runnable {
 
     private void handleFederatedMessage(String from, String to, String stanzaId, String bodyText) {
         if (bodyText == null || bodyText.isBlank()) {
-            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            federationTelemetry.recordFederationInboundRejectedMessage(authenticatedPeerDomain, federationProperties.configJson());
             sendRaw(XmppXml.federationDeliveryError(stanzaId, "bad-request"));
             return;
         }
@@ -416,7 +437,7 @@ final class XmppConnectionHandler implements Runnable {
             recipientAddress = XmppAddress.parse(to);
         }
         catch (IllegalArgumentException exception) {
-            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            federationTelemetry.recordFederationInboundRejectedMessage(authenticatedPeerDomain, federationProperties.configJson());
             sendRaw(XmppXml.federationDeliveryError(stanzaId, "jid-malformed"));
             return;
         }
@@ -424,7 +445,7 @@ final class XmppConnectionHandler implements Runnable {
             || recipientAddress.localpart() == null
             || !normalize(senderAddress.domain()).equals(authenticatedPeerDomain)
             || !properties.getDomain().equalsIgnoreCase(recipientAddress.domain())) {
-            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            federationTelemetry.recordFederationInboundRejectedMessage(authenticatedPeerDomain, federationProperties.configJson());
             sendRaw(XmppXml.federationDeliveryError(stanzaId, "forbidden"));
             return;
         }
@@ -432,7 +453,7 @@ final class XmppConnectionHandler implements Runnable {
         ResolvedUser mirroredSender = userDirectoryQuery.findActiveUserByUsername(senderAddress.localpart()).orElse(null);
         ResolvedUser recipient = userDirectoryQuery.findActiveUserByUsername(recipientAddress.localpart()).orElse(null);
         if (mirroredSender == null || recipient == null) {
-            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            federationTelemetry.recordFederationInboundRejectedMessage(authenticatedPeerDomain, federationProperties.configJson());
             sendRaw(XmppXml.federationDeliveryError(stanzaId, "item-not-found"));
             return;
         }
@@ -449,7 +470,7 @@ final class XmppConnectionHandler implements Runnable {
             sendRaw(XmppXml.federationAck(stanzaId));
         }
         catch (ContactsException | MessagingException exception) {
-            federationTelemetry.recordFederationError(authenticatedPeerDomain, federationProperties.configJson());
+            federationTelemetry.recordFederationInboundRejectedMessage(authenticatedPeerDomain, federationProperties.configJson());
             sendRaw(XmppXml.federationDeliveryError(stanzaId, "not-allowed"));
         }
     }
@@ -500,6 +521,17 @@ final class XmppConnectionHandler implements Runnable {
 
     private String remoteAddress() {
         return String.valueOf(socket.getRemoteSocketAddress());
+    }
+
+    private static String mapFederationFailureCondition(String condition) {
+        return switch (condition) {
+            case "not-allowed", "item-not-found", "jid-malformed", "bad-request", "forbidden" -> condition;
+            default -> "service-unavailable";
+        };
+    }
+
+    private static boolean isPolicyRejectionCondition(String condition) {
+        return !"service-unavailable".equals(condition);
     }
 
     private static String normalize(String value) {

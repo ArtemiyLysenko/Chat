@@ -34,6 +34,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import edu.artemiy.chat.adapters.xmpp.XmppTcpServer;
+import edu.artemiy.chat.contacts.api.ContactsException;
 import edu.artemiy.chat.app.bootstrap.ChatApplication;
 import edu.artemiy.chat.contacts.api.ContactsService;
 import edu.artemiy.chat.contacts.api.CreateFriendRequestCommand;
@@ -175,6 +176,37 @@ class XmppIntegrationTests extends PostgresIntegrationSupport {
         finally {
             disconnectQuietly(captainConnection);
             disconnectQuietly(scoutConnection);
+        }
+    }
+
+    @Test
+    void ineligibleDirectMessagesAreRejectedOverXmppWithNotAllowed() throws Exception {
+        TestUser captain = registerUser("captain");
+        TestUser scout = registerUser("scout");
+
+        XMPPTCPConnection captainConnection = connect("captain", "password123", "bridge-captain");
+        try {
+            StanzaQueue captainErrorQueue = new StanzaQueue();
+            captainConnection.addAsyncStanzaListener(
+                captainErrorQueue,
+                stanza -> stanza instanceof Message message && Message.Type.error.equals(message.getType())
+            );
+
+            Message xmppMessage = new Message(JidCreate.entityBareFrom("scout@test.chat"), Message.Type.chat);
+            xmppMessage.setBody("Should be denied");
+            captainConnection.sendStanza(xmppMessage);
+
+            Message rejection = captainErrorQueue.await(Message.class);
+            assertThat(rejection.getType()).isEqualTo(Message.Type.error);
+            assertThat(rejection.getError()).isNotNull();
+            assertThat(rejection.getError().getCondition().toString()).isEqualTo("not-allowed");
+            assertThatThrownBy(() -> contactsService.ensureDirectDialog(captain.userId(), scout.userId()))
+                .isInstanceOfSatisfying(ContactsException.class, exception ->
+                    assertThat(exception.code()).isEqualTo("contacts.direct_dialog_not_friends")
+                );
+        }
+        finally {
+            disconnectQuietly(captainConnection);
         }
     }
 
